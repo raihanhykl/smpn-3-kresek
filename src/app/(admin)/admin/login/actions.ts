@@ -11,7 +11,11 @@ export async function loginAction(
 ): Promise<LoginState> {
   const email = String(formData.get('email') ?? '');
   const password = String(formData.get('password') ?? '');
-  const returnUrl = String(formData.get('returnUrl') ?? '/admin/dashboard');
+  const rawReturnUrl = String(formData.get('returnUrl') ?? '/admin/dashboard');
+  // Defensive: only allow same-origin admin paths. NextAuth's signIn also
+  // rejects external origins, but failing closed here prevents open-redirect
+  // probes (e.g. /\\evil.com bypasses) from ever reaching the auth layer.
+  const returnUrl = rawReturnUrl.startsWith('/admin/') ? rawReturnUrl : '/admin/dashboard';
 
   try {
     await signIn('credentials', {
