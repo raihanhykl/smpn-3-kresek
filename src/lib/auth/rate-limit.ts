@@ -11,6 +11,9 @@ export type RateLimiter = {
 };
 
 export function createRateLimiter(opts: { max: number; windowMs: number }): RateLimiter {
+  // Buckets are not GC'd; expired entries are overwritten only when the same key
+  // returns. Acceptable for single-VPS low-traffic profile (sekolah site). If we
+  // ever scale horizontally or face IP-rotation abuse, swap to Redis (same API).
   const buckets = new Map<string, Bucket>();
 
   return {
