@@ -4,9 +4,31 @@ Website resmi **SMP Negeri 3 Kresek** (Kecamatan Kresek, Kabupaten Tangerang, Ba
 
 ## Status
 
+**Phase 1 (Data migration): ✅ Complete** — public site now reads all content from Postgres via `ApiContentProvider` (`NEXT_PUBLIC_DATA_SOURCE=api`). Visual regression tests confirm no drift from Phase 0. CTA "Info PPDB" diganti "Kontak". Seed script populates DB dari `src/config/` (idempotent).
+
 **Phase 0 (Foundation): ✅ Complete** — server runtime + Postgres + Prisma, NextAuth v5 (Edge/Node split) + bcrypt, login flow, force-password-change flow, audit log, middleware auth guard, health check, idempotent seed, Playwright E2E + Jest integration tests, GitHub Actions CI, Hostinger VPS deploy script.
 
-Public pages tetap render dari config typed di `src/config/` (StaticContentProvider). Phase 1 akan migrate ke Postgres-backed data source. Lihat [docs/superpowers/specs/](./docs/superpowers/specs/) dan [docs/superpowers/plans/](./docs/superpowers/plans/) untuk roadmap lengkap.
+Phase 2 selanjutnya akan membangun admin dashboard CRUD UI. Lihat [docs/superpowers/specs/](./docs/superpowers/specs/) dan [docs/superpowers/plans/](./docs/superpowers/plans/) untuk roadmap lengkap.
+
+### Phase 1 deployment notes
+
+**⚠️ WAJIB**: Set `NEXT_PUBLIC_DATA_SOURCE=api` di production env (PM2 ecosystem file atau systemd env) sebelum first Phase 1 deploy. Tanpa ini, site tetap render dari StaticContentProvider (stale snapshot dari src/config/) — admin edits di Phase 2+ tidak akan muncul.
+
+**Verify production env**:
+```bash
+# Di VPS, sebelum deploy:
+echo $NEXT_PUBLIC_DATA_SOURCE   # harus "api"
+```
+
+**First-time deploy flow** (deploy script handle ini otomatis):
+1. `prisma migrate deploy` — apply schema
+2. `npm run db:seed:content` — populate dari src/config/ (idempotent)
+3. `npm run build` — production build dengan api source
+4. `pm2 reload smpn3`
+
+**Dev lokal**: setelah migrate, jalankan `DATABASE_URL="..." npm run db:seed:content` dan set `NEXT_PUBLIC_DATA_SOURCE=api` di `.env.local`.
+
+**⚠️ Phase 2 caveat**: deploy script saat ini selalu re-seed dari src/config/. Setelah Phase 2 (admin CRUD) ship, edit production data via admin UI akan **overwritten** oleh deploy. Phase 2 plan akan mengkonditionalisasi seed (e.g., hanya kalau marker row absent, atau hapus step ini dari deploy.sh).
 
 > 📘 **Baru di Next.js full-stack?** Lihat dev guide untuk Express developers:
 > - [docs/dev-guide/nextjs-untuk-express-developer.md](./docs/dev-guide/nextjs-untuk-express-developer.md) — peta padanan konsep Express ↔ Next.js
@@ -186,7 +208,6 @@ Saat backend siap:
 3. Set env var:
    ```bash
    NEXT_PUBLIC_DATA_SOURCE=api
-   NEXT_PUBLIC_API_BASE_URL=https://api.smpn3kresek.sch.id/v1
    ```
 4. Tidak ada perubahan di sisi UI: setiap page sudah `await provider.getXxxPage()`.
 
@@ -238,7 +259,6 @@ Threshold: ≥ 70% coverage pada `src/lib/`. Yang ditest:
 | Variable | Default | Description |
 |---|---|---|
 | `NEXT_PUBLIC_DATA_SOURCE` | `static` | `static` atau `api`. Static → membaca dari config. Api → mengaktifkan `ApiContentProvider` dan route `/admin`. |
-| `NEXT_PUBLIC_API_BASE_URL` | `''` | Base URL untuk `ApiContentProvider`. Tidak terpakai dalam mode static. |
 
 Copy [`.env.example`](./.env.example) ke `.env.local` untuk overrides lokal.
 

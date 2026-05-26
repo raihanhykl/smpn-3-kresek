@@ -25,6 +25,11 @@ npx prisma generate
 echo "==> Run migrations"
 npx prisma migrate deploy
 
+echo "==> Seed content (Phase 1: idempotent population from src/config/)"
+# TODO Phase 2: when admin CRUD ships, this will overwrite admin edits on every deploy.
+# Conditionalize (e.g., only run if no admin-edited marker row) or remove from deploy.sh.
+npm run db:seed:content
+
 echo "==> Build"
 npm run build
 
