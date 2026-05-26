@@ -8,6 +8,10 @@ Website resmi **SMP Negeri 3 Kresek** (Kecamatan Kresek, Kabupaten Tangerang, Ba
 
 Public pages tetap render dari config typed di `src/config/` (StaticContentProvider). Phase 1 akan migrate ke Postgres-backed data source. Lihat [docs/superpowers/specs/](./docs/superpowers/specs/) dan [docs/superpowers/plans/](./docs/superpowers/plans/) untuk roadmap lengkap.
 
+> 📘 **Baru di Next.js full-stack?** Lihat dev guide untuk Express developers:
+> - [docs/dev-guide/nextjs-untuk-express-developer.md](./docs/dev-guide/nextjs-untuk-express-developer.md) — peta padanan konsep Express ↔ Next.js
+> - [docs/dev-guide/walkthrough-phase-0.md](./docs/dev-guide/walkthrough-phase-0.md) — line-by-line walk-through code Phase 0
+
 ---
 
 ## Tech stack
