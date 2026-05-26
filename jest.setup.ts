@@ -15,7 +15,7 @@ class MockIntersectionObserver {
 (globalThis as unknown as { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver =
   MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
-if (!('scrollTo' in window)) {
+if (typeof window !== 'undefined' && !('scrollTo' in window)) {
   Object.defineProperty(window, 'scrollTo', { value: () => undefined, writable: true });
 }
 
