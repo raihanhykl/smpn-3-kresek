@@ -188,6 +188,7 @@ CREATE TABLE "MediaAsset" (
     "height" INTEGER,
     "uploadedBy" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "MediaAsset_pkey" PRIMARY KEY ("id")
 );
@@ -231,6 +232,9 @@ CREATE INDEX "Facility_kind_order_idx" ON "Facility"("kind", "order");
 CREATE INDEX "OrganizationMember_level_order_idx" ON "OrganizationMember"("level", "order");
 
 -- CreateIndex
+CREATE INDEX "DocumentSlot_mediaId_idx" ON "DocumentSlot"("mediaId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "MediaAsset_publicId_key" ON "MediaAsset"("publicId");
 
 -- CreateIndex
@@ -247,6 +251,9 @@ CREATE UNIQUE INDEX "MediaUsage_mediaId_usedInTable_usedInId_usedInField_key" ON
 
 -- AddForeignKey
 ALTER TABLE "OrganizationMember" ADD CONSTRAINT "OrganizationMember_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "OrganizationMember"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DocumentSlot" ADD CONSTRAINT "DocumentSlot_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "MediaAsset"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MediaUsage" ADD CONSTRAINT "MediaUsage_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "MediaAsset"("id") ON DELETE CASCADE ON UPDATE CASCADE;

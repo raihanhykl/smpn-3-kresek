@@ -214,30 +214,37 @@ model OrganizationMember {
 }
 
 model DocumentSlot {
-  id        String   @id  // "kalender-akademik" | "tata-tertib"
-  mediaId   String?       // references MediaAsset; null = no file uploaded yet
-  updatedAt DateTime @updatedAt
+  id        String      @id  // "kalender-akademik" | "tata-tertib"
+  mediaId   String?
+  // SetNull: deleting a MediaAsset clears the slot rather than blocking deletion
+  // or cascading the document slot itself away (the slot is identity, not content).
+  media     MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  updatedAt DateTime    @updatedAt
   updatedBy String?
+
+  @@index([mediaId])
 }
 
 // ─── Phase 1: Media skeleton (used in Phase 3) ───
 // Included now so Phase 3 doesn't need its own migration.
 
 model MediaAsset {
-  id          String         @id @default(cuid())
-  kind        String         // "image" | "pdf"
-  url         String
-  publicId    String         @unique
-  hash        String         @unique
-  alt         String?
-  filename    String
-  sizeBytes   Int
-  mimeType    String
-  width       Int?
-  height      Int?
-  uploadedBy  String
-  createdAt   DateTime       @default(now())
-  usages      MediaUsage[]
+  id            String         @id @default(cuid())
+  kind          String         // "image" | "pdf"
+  url           String
+  publicId      String         @unique
+  hash          String         @unique
+  alt           String?
+  filename      String
+  sizeBytes     Int
+  mimeType      String
+  width         Int?
+  height        Int?
+  uploadedBy    String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  usages        MediaUsage[]
+  documentSlots DocumentSlot[]
 }
 
 model MediaUsage {
