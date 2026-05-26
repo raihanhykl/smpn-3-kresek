@@ -12,6 +12,14 @@ export default async function globalSetup() {
     env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
   });
 
+  // Seed content tables. Idempotent + required for api-source E2E so the
+  // webServer (built with NEXT_PUBLIC_DATA_SOURCE=api) can resolve content
+  // from the database during page rendering.
+  execSync('npx tsx scripts/seed-content.ts', {
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+  });
+
   // Wipe AuditLog rows that reference the e2e users first, otherwise the
   // FK (AuditLog.userId → User.id) blocks user deletion on re-runs.
   const existing = await prisma.user.findMany({

@@ -26,7 +26,7 @@ export default defineConfig({
         'postgresql://test:test@localhost:5433/smpn3_test?schema=public',
       AUTH_SECRET: 'e2e-secret-must-be-at-least-thirty-two-chars',
       AUTH_URL: 'http://localhost:3000',
-      NEXT_PUBLIC_DATA_SOURCE: 'static',
+      NEXT_PUBLIC_DATA_SOURCE: 'api',
     },
   },
 });
