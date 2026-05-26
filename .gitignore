@@ -29,3 +29,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# session artifacts (screenshots, phase markers, tool dirs)
+*.png
+!public/**/*.png
+!src/**/*.png
+.phase*-done
+.playwright-mcp/
+.superpowers/
