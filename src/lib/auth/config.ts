@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth';
+import NextAuth, { type NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { headers as nextHeaders } from 'next/headers';
 import { z } from 'zod';
@@ -16,10 +16,17 @@ const credentialsSchema = z.object({
 /**
  * Structurally-valid bcrypt hash used as a constant-time placeholder when the
  * email is unknown. NEVER matches any real password (verifyPassword returns false).
- * Generated once at module load by hashing a random throwaway string, so the cost
- * matches our COST constant (10).
+ * Generated once on first use (lazy) by hashing a random throwaway string, so the
+ * cost matches our COST constant (10). Lazy so this module stays compatible with
+ * CJS test runners that cannot evaluate top-level await.
  */
-const DUMMY_HASH = await hashPassword(`__dummy_${Math.random()}_${Date.now()}__`);
+let _dummyHashPromise: Promise<string> | null = null;
+function getDummyHash(): Promise<string> {
+  if (!_dummyHashPromise) {
+    _dummyHashPromise = hashPassword(`__dummy_${Math.random()}_${Date.now()}__`);
+  }
+  return _dummyHashPromise;
+}
 
 async function getClientIp(): Promise<string | null> {
   try {
@@ -34,7 +41,12 @@ async function getClientIp(): Promise<string | null> {
   }
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+/**
+ * Full NextAuth config (Node side): edge-safe callbacks + Credentials provider.
+ * Exported separately so tests can invoke `authConfig.providers[0].authorize`
+ * directly without spinning up the HTTP handlers.
+ */
+export const authConfig = {
   ...authConfigEdge,
   providers: [
     Credentials({
@@ -53,7 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
         // Always run bcrypt to keep timing constant whether user exists or not.
-        const hash = user?.passwordHash ?? DUMMY_HASH;
+        const hash = user?.passwordHash ?? (await getDummyHash());
         const valid = await verifyPassword(parsed.data.password, hash);
         if (!user || !valid) {
           if (user) {
@@ -86,4 +98,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-});
+} satisfies NextAuthConfig;
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);

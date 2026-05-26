@@ -8,6 +8,13 @@ export type RateLimitResult = {
 
 export type RateLimiter = {
   check(key: string): RateLimitResult;
+  /**
+   * TEST-ONLY: clear all buckets. Used by integration tests to prevent
+   * cross-test rate-limit pollution when a singleton limiter is shared.
+   * Calling this in production is a no-op semantically (just resets state)
+   * but should never be wired into request paths.
+   */
+  resetForTests(): void;
 };
 
 export function createRateLimiter(opts: { max: number; windowMs: number }): RateLimiter {
@@ -33,6 +40,9 @@ export function createRateLimiter(opts: { max: number; windowMs: number }): Rate
         remaining: opts.max - existing.count,
         retryAfterMs: 0,
       };
+    },
+    resetForTests(): void {
+      buckets.clear();
     },
   };
 }
