@@ -40,12 +40,14 @@ Run:
 ```bash
 npm install \
   @prisma/client@^6.0.0 \
-  next-auth@5.0.0-beta.25 \
+  next-auth@5.0.0-beta.31 \
   @auth/prisma-adapter@^2.7.0 \
   bcryptjs@^2.4.3 \
   zod@^3.23.0 \
   @t3-oss/env-nextjs@^0.11.0
 ```
+
+Note: `next-auth@5.0.0-beta.31` (not earlier) patches GHSA-5jpx-9hw9-2fx4 (Email provider misdelivery, moderate).
 
 Expected: installs without error. `package.json` `dependencies` now includes all six.
 
