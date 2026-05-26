@@ -114,14 +114,16 @@ Sistem mempertahankan arsitektur `ContentProvider` yang sudah ada di project, me
 ```prisma
 // === Auth & users ===
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         Role
-  createdAt    DateTime @default(now())
-  lastLoginAt  DateTime?
-  sessions     Session[]
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  name                String
+  role                Role
+  mustChangePassword  Boolean   @default(false) // true setelah admin reset password
+  passwordChangedAt   DateTime?
+  createdAt           DateTime  @default(now())
+  lastLoginAt         DateTime?
+  sessions            Session[]
 }
 
 enum Role { ADMIN EDITOR }
@@ -252,13 +254,15 @@ model Facility {
 }
 
 model OrganizationMember {
-  id        String   @id @default(cuid())
+  id        String                @id @default(cuid())
   name      String
   role      String
   parentId  String?
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  parent    OrganizationMember?   @relation("OrgTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  OrganizationMember[]  @relation("OrgTree")
+  order     Int                   @default(0)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
 }
 
 // === Media ===
@@ -341,7 +345,9 @@ model AuditLog {
 | Page sections, entity CRUD, media, document slot | ✅ | ✅ |
 | SiteConfig & Navigation | ✅ | Read-only |
 | User management | ✅ | ❌ |
-| View audit log | ✅ semua | ✅ own only |
+| Audit log: per-page history drawer (Phase 4) | ✅ | ✅ untuk halaman ybs |
+
+**Catatan**: tidak ada dedicated audit-log viewer page di scope. Audit history hanya muncul lewat "History drawer" per-page di inline editor (Phase 4). Kalau ADMIN butuh trace lebih dalam, query langsung DB.
 
 ### Authorization (3 lapis)
 
@@ -370,7 +376,7 @@ model AuditLog {
 
 ### Password reset
 
-Admin manual: ADMIN buka `/admin/users/<id>` → klik "Reset password" → generate password sementara → tampilkan sekali → admin kasih ke user via WhatsApp. User wajib ganti password saat login.
+Admin manual: ADMIN buka `/admin/users/<id>` → klik "Reset password" → generate password sementara → tampilkan sekali (modal) → admin kasih ke user via WhatsApp. Server set `User.mustChangePassword = true`. Saat user login berikutnya, middleware/login flow detect flag dan force redirect ke `/admin/change-password` sampai user submit password baru (clear flag + update `passwordChangedAt`).
 
 ---
 
@@ -407,6 +413,8 @@ Saat `/admin/edit/profil`:
   {(value) => <h1>{value}</h1>}
 </Editable>
 ```
+
+**Note tentang `type="link"`**: di MVP, link editing dibutuhkan terutama untuk SiteConfig (URL sosmed) dan dalam rich-text inline. Selama planning Phase 4, konfirmasi surface tepat mana yang butuh structured link picker vs cukup edit URL sebagai plain text di rich-text toolbar. Kalau ternyata tidak ada surface yang butuh struktur `{url, label}` terpisah, `type="link"` bisa di-drop dan disisakan untuk v2.
 
 Behaviour:
 - **View mode** → render children pure, zero overhead
@@ -546,7 +554,7 @@ function cldUrl(publicId: string, variant: 'avatar' | 'card' | 'hero'): string {
 
 ### Orphan cleanup
 
-Cron harian 03:00 WIB: hapus dari Cloudinary `publicId` yang tidak ada di MediaAsset table dan umur >1 jam.
+Cron harian 03:00 WIB (via crontab di Hostinger VPS): hapus dari Cloudinary `publicId` yang tidak ada di MediaAsset table dan umur >1 jam. Setup crontab masuk ke Phase 3 deliverable (lihat Section 10).
 
 ### Security checks
 
@@ -629,6 +637,8 @@ Setup:
 
 ### CI/CD: GitHub Actions
 
+**Deploy mechanism**: SSH-based deploy via GitHub Actions `appleboy/ssh-action`. Workflow connect ke VPS dengan SSH key (disimpan di GitHub Secret), execute deploy script di VPS yang melakukan: `git pull` → `npm ci` → `prisma migrate deploy` → `npm run build` → `pm2 reload`. Dipilih atas rsync karena lebih atomik (kalau build fail di VPS, app lama tetap jalan) dan tidak butuh self-hosted runner.
+
 ```yaml
 on: [pull_request, push to main]
 
@@ -636,17 +646,21 @@ jobs:
   ci: lint + typecheck + test + build
   e2e: Playwright headless
   deploy (main only):
-    - prisma migrate deploy
-    - rsync ke VPS atau pull via webhook
-    - PM2 reload
+    - ssh-action ke VPS
+    - jalankan /opt/smpn3/deploy.sh
+        ↳ git pull origin main
+        ↳ npm ci
+        ↳ npx prisma migrate deploy
+        ↳ npm run build
+        ↳ pm2 reload smpn3
 ```
 
 ### Env vars
 
 ```
 DATABASE_URL=postgres://...
-AUTH_SECRET=<32 char random>
-AUTH_URL=https://smpn3kresek.sch.id
+AUTH_SECRET=<32 char random>          # generate: openssl rand -base64 32
+AUTH_URL=https://smpn3kresek.sch.id    # NextAuth v5 naming (BUKAN NEXTAUTH_URL)
 CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
@@ -724,7 +738,8 @@ Data DB jadi source of truth.
 - Implement `ApiContentProvider` penuh dengan `unstable_cache` + tags
 - Switch `NEXT_PUBLIC_DATA_SOURCE=api`
 - CTA fix: hapus PPDB, ganti Kontak
-- Visual parity verify (Playwright screenshot diff)
+- **Capture Playwright screenshot baselines** dari static export (dijalankan SEBELUM switch ke api) sebagai reference
+- Visual parity verify (Playwright screenshot diff vs baseline)
 
 **Deliverable**: public site visually identical, data sudah dari DB.
 
@@ -757,6 +772,7 @@ CRUD via traditional dashboard.
 - Delete dengan check usage
 - Validation (MIME, size, magic bytes)
 - `cldUrl` wrapper
+- **Setup crontab di VPS untuk orphan cleanup harian** (03:00 WIB)
 - Tests + Playwright upload flow
 
 **Deliverable**: upload foto guru baru, ganti PDF kalender, semua reflect di public.
@@ -854,7 +870,17 @@ Tidak ada pada saat spec ditulis — semua keputusan stakeholder sudah confirmed
 
 ---
 
-## 14. Approval
+## 14. Planning guidance
+
+Spec ini cakupannya **program-level** (6 fase yang masing-masing shippable). Implementation plan **TIDAK** dibuat sebagai satu mega-plan. Sebagai gantinya:
+
+- Plan pertama target **Phase 0 (Foundation)** saja.
+- Setelah Phase 0 selesai dan di-merge, plan Phase 1 dibuat dengan konteks baru (DB sudah live, dst).
+- Demikian seterusnya sampai Phase 5.
+
+Rationale: setiap fase punya risiko & dependency berbeda, dan keputusan implementasi fase berikutnya bisa berubah berdasarkan apa yang dipelajari di fase sebelumnya. One-plan-per-phase memberi feedback loop yang sehat.
+
+## 15. Approval
 
 Stakeholder telah konfirmasi semua keputusan via brainstorming session 2026-05-26:
 
