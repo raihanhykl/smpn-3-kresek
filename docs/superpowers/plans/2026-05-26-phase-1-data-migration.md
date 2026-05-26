@@ -8,6 +8,8 @@
 
 **Architecture:**
 - **Schema**: tambah model `PageSection` (JSONB), `SiteConfig` (singleton JSONB), `Navigation` (singleton JSONB), dan tabel entity (`Teacher`, `Achievement`, `Extracurricular`, `Subject`, `Faq`, `GalleryItem`, `Facility`, `OrganizationMember`, `DocumentSlot`, `MediaAsset`, `MediaUsage`). Migration tunggal `phase1_content_schema`.
+- **Per-page entity scoping**: list-of-IDs untuk entity yang muncul di multiple pages (Achievement appears di home featured + profil full list; GalleryItem appears di home + fasilitas) disimpan dalam JSONB PageSection (`achievementsMeta.featuredIds`, `galleryMeta.featuredIds`). Repo accept ID array filter. Mencegah "home shows all 11 achievements when static showed 5" bug.
+- **Ordering**: `Teacher.categoryOrder` dan `Extracurricular.categoryOrder` (int columns) menyimpan **explicit display order per category** (pimpinan → guru → tu, bukan alphabetical). Repo `ORDER BY [categoryOrder, order]`, bukan `[category, order]`.
 - **Read layer**: tipis-tipis. Tiap entity punya **repository file** (`*-repo.ts`). Tiap page punya **assembler** (`assemblers/*.ts`) yang compose data dari repositories + page sections → mengembalikan exact shape `HomePageConfig`/`ProfilePageConfig`/dst dari `src/config/types.ts`.
 - **Zod schemas** mirror `types.ts` — dipakai untuk validate JSONB sebelum insert (seed) dan akan dipakai untuk form validation di Phase 2.
 - **Caching**: `unstable_cache` dengan tags per-page dan per-entity. Phase 1 belum invalidate (CRUD baru di Phase 2), tapi tag sudah diset supaya Phase 2 tinggal panggil `revalidateTag`.
@@ -85,15 +87,19 @@ test.describe('public site visual baseline', () => {
 
 - [ ] **Step 1.4: Run baseline once to capture screenshots**
 
-Run: `npm run e2e -- --update-snapshots`
-Expected: snapshots created at `playwright/tests/visual-baseline.spec.ts-snapshots/`. All tests "pass" (first run creates baseline).
+**Important**: Playwright doesn't have `--testPathPattern` (that's Jest). Pass the file path positionally or use `-g`/`--grep`.
+
+Run: `npm run e2e -- playwright/tests/visual-baseline.spec.ts --update-snapshots`
+Expected: snapshots created at `playwright/tests/visual-baseline.spec.ts-snapshots/`. All 5 tests "pass" (first run creates baseline).
 
 If `npm run e2e` fails because dev server doesn't start, check that test postgres is running.
 
 - [ ] **Step 1.5: Re-run to verify baseline is stable**
 
-Run: `npm run e2e -- --testPathPattern='visual-baseline'`
+Run: `npm run e2e -- playwright/tests/visual-baseline.spec.ts`
 Expected: 5 tests pass cleanly.
+
+If tests fail unexpectedly (e.g., navbar pixel diff under the 1% threshold but visible to the eye), tighten `maxDiffPixelRatio: 0.001` in the spec, or use `maxDiffPixels: 50` for absolute pixel count. Re-capture with `--update-snapshots` after tightening.
 
 - [ ] **Step 1.6: Commit baseline + test**
 
@@ -153,6 +159,10 @@ model Teacher {
   position      String
   badge         String
   category      String   // "pimpinan" | "guru" | "tu"
+  // Explicit display order per category. Static config has pimpinan first,
+  // then guru, then tu — alphabetical sort by category would reorder. Seed
+  // sets categoryOrder = 0 for pimpinan, 1 for guru, 2 for tu.
+  categoryOrder Int      @default(0)
   photoKind     String   // "url" | "gradient"
   photoSrc      String?
   photoAlt      String?
@@ -163,7 +173,7 @@ model Teacher {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([category, order])
+  @@index([categoryOrder, order])
 }
 
 model Achievement {
@@ -182,19 +192,23 @@ model Achievement {
 }
 
 model Extracurricular {
-  id          String   @id @default(cuid())
-  name        String
-  category    String   // "wajib" | "olahraga" | "seni" | "akademik" | "keagamaan" | "lainnya"
-  description String
-  pembina     String
-  schedule    String
-  achievement String?
-  icon        String
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  category      String   // "wajib" | "olahraga" | "seni" | "akademik" | "keagamaan" | "lainnya"
+  // Explicit display order per category. Static order: wajib → olahraga →
+  // seni → akademik → keagamaan → lainnya. Alphabetical would put akademik
+  // first. Seed sets categoryOrder by enum index.
+  categoryOrder Int      @default(0)
+  description   String
+  pembina       String
+  schedule      String
+  achievement   String?
+  icon          String
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  @@index([category, order])
+  @@index([categoryOrder, order])
 }
 
 model Subject {
@@ -363,11 +377,14 @@ import { siteConfigSchema } from '@/lib/validation/schemas/site-config';
 import { siteConfig } from '@config/site';
 
 describe('siteConfigSchema', () => {
-  it('accepts the existing static siteConfig (round-trip safety)', () => {
-    // Drop ppdbCta — Phase 1 replaces it with kontakCta.
+  it('accepts the existing static siteConfig after kontakCta rename', () => {
+    // Phase 1: ppdbCta is removed and replaced with kontakCta.
+    // This test passes BEFORE Task 4 (because we synthesize kontakCta below)
+    // and AFTER Task 4 (because the destructure of a missing field is undefined).
     const { ppdbCta: _omit, ...rest } = siteConfig as typeof siteConfig & {
       ppdbCta?: unknown;
     };
+    void _omit;
     const candidate = {
       ...rest,
       kontakCta: { label: 'Kontak', href: '/kontak' },
@@ -377,6 +394,14 @@ describe('siteConfigSchema', () => {
       throw new Error('Zod failed: ' + JSON.stringify(result.error.format(), null, 2));
     }
     expect(result.success).toBe(true);
+  });
+
+  // This test asserts the rename actually happened in src/config/site.ts.
+  // Skipped pre-Task-4, enabled at Task 4. Catches a regression where someone
+  // re-adds ppdbCta to site.ts later.
+  it.skip('static siteConfig no longer has ppdbCta (Phase 1 contract)', () => {
+    expect((siteConfig as Record<string, unknown>).ppdbCta).toBeUndefined();
+    expect((siteConfig as unknown as { kontakCta: unknown }).kontakCta).toBeDefined();
   });
 
   it('rejects missing required fields', () => {
@@ -621,32 +646,44 @@ sed -i.bak 's/site\.ppdbCta/site.kontakCta/g' src/components/organisms/Navbar.ts
 
 Verify: `grep -n "ppdbCta\|kontakCta" src/components/organisms/Navbar.tsx` should show only `kontakCta`.
 
-- [ ] **Step 4.4: Typecheck**
+- [ ] **Step 4.4: Enable the ppdbCta-absence test from Task 3**
 
-Run: `npm run typecheck`
-Expected: no errors.
+Edit `src/__tests__/lib/validation/site-config.test.ts`: change `it.skip('static siteConfig no longer has ppdbCta...'` to `it('static siteConfig no longer has ppdbCta...'`. The test now actively guards against re-adding `ppdbCta` to `site.ts`.
 
-- [ ] **Step 4.5: Run existing tests + build smoke**
-
-Run: `npm test && SKIP_ENV_VALIDATION=true npm run build`
-Expected: tests pass, build succeeds.
-
-- [ ] **Step 4.6: Re-run visual baseline — expect 1 page to differ (Navbar CTA label)**
-
-Run: `npm run e2e -- --testPathPattern='visual-baseline'`
-Expected: tests **FAIL** on all 5 pages because the navbar CTA label changed.
-
-This is expected. Update the baselines:
+Use sed:
 ```bash
-npm run e2e -- --testPathPattern='visual-baseline' --update-snapshots
+sed -i.bak "s|it.skip('static siteConfig no longer has ppdbCta|it('static siteConfig no longer has ppdbCta|" src/__tests__/lib/validation/site-config.test.ts && rm src/__tests__/lib/validation/site-config.test.ts.bak
 ```
 
-Re-run to confirm: `npm run e2e -- --testPathPattern='visual-baseline'` — should all pass now.
+- [ ] **Step 4.5: Typecheck + tests**
+
+Run: `npm run typecheck && npm test`
+Expected: no errors. The newly-enabled regression test passes (because Step 4.2 already renamed `ppdbCta` → `kontakCta` in site.ts).
+
+- [ ] **Step 4.5.1: Run build smoke**
+
+Run: `SKIP_ENV_VALIDATION=true npm run build`
+Expected: build succeeds.
+
+- [ ] **Step 4.6: Re-run visual baseline — expect failure due to Navbar CTA label change**
+
+Run: `npm run e2e -- playwright/tests/visual-baseline.spec.ts`
+Expected: tests **FAIL** on all 5 pages because the navbar CTA label changed from "Info PPDB" to "Kontak".
+
+**If tests unexpectedly PASS** (pixel diff under threshold): the safety net is broken. Tighten `maxDiffPixelRatio` to `0.001` or add `maxDiffPixels: 50` in `visual-baseline.spec.ts`, then re-run.
+
+When FAIL is confirmed, update the baselines:
+```bash
+npm run e2e -- playwright/tests/visual-baseline.spec.ts --update-snapshots
+```
+
+Re-run to confirm: `npm run e2e -- playwright/tests/visual-baseline.spec.ts` — should all pass now with new baselines.
 
 - [ ] **Step 4.7: Commit**
 
 ```bash
 git add src/config/types.ts src/config/site.ts src/components/organisms/Navbar.tsx \
+        src/__tests__/lib/validation/site-config.test.ts \
         playwright/tests/visual-baseline.spec.ts-snapshots/
 git commit -m "feat(site): rename ppdbCta to kontakCta + update baseline"
 ```
@@ -1166,7 +1203,7 @@ Create `src/__tests__/integration/repositories/entity-repos.test.ts`:
 ```ts
 import { prisma } from '@/lib/db/client';
 import { getTeachers } from '@/lib/data/repositories/teacher-repo';
-import { getAchievements } from '@/lib/data/repositories/achievement-repo';
+import { getAllAchievements, getAchievementsByIds } from '@/lib/data/repositories/achievement-repo';
 import { getExtracurriculars } from '@/lib/data/repositories/extracurricular-repo';
 
 describe('entity repositories', () => {
@@ -1178,8 +1215,10 @@ describe('entity repositories', () => {
     await prisma.teacher.createMany({
       data: [
         { id: 't1', name: 'A', position: 'Guru', badge: 'S.Pd.', category: 'guru',
-          photoKind: 'gradient', photoFrom: '#000', photoTo: '#fff', photoEmoji: '👤', order: 1 },
+          categoryOrder: 1,
+          photoKind: 'gradient', photoFrom: '#000', photoTo: '#fff', photoEmoji: '👤', order: 0 },
         { id: 't2', name: 'B', position: 'Kepsek', badge: 'M.Pd.', category: 'pimpinan',
+          categoryOrder: 0,
           photoKind: 'gradient', photoFrom: '#000', photoTo: '#fff', photoEmoji: '👤', order: 0 },
       ],
     });
@@ -1192,8 +1231,8 @@ describe('entity repositories', () => {
       ],
     });
     await prisma.extracurricular.create({
-      data: { id: 'e1', name: 'Pramuka', category: 'wajib', description: 'd',
-        pembina: 'X', schedule: 'Sabtu', icon: '⛺', order: 0 },
+      data: { id: 'e1', name: 'Pramuka', category: 'wajib', categoryOrder: 0,
+        description: 'd', pembina: 'X', schedule: 'Sabtu', icon: '⛺', order: 0 },
     });
   });
 
@@ -1204,18 +1243,24 @@ describe('entity repositories', () => {
     await prisma.$disconnect();
   });
 
-  it('getTeachers returns Teacher[] with photo discriminator + ordered by [category, order]', async () => {
+  it('getTeachers returns Teacher[] with photo discriminator + ordered by [categoryOrder, order]', async () => {
     const teachers = await getTeachers();
     expect(teachers).toHaveLength(2);
-    // Pimpinan (order 0) comes before Guru (order 1).
+    // Pimpinan has categoryOrder=0 (seeded ahead), Guru has categoryOrder=1.
+    // Even though "guru" < "pimpinan" alphabetically, categoryOrder wins.
     expect(teachers[0]?.category).toBe('pimpinan');
     expect(teachers[0]?.photo).toEqual({ kind: 'gradient', from: '#000', to: '#fff', emoji: '👤' });
   });
 
-  it('getAchievements returns ordered Achievement[]', async () => {
-    const items = await getAchievements();
+  it('getAllAchievements returns ordered Achievement[]', async () => {
+    const items = await getAllAchievements();
     expect(items).toHaveLength(2);
     expect(items[0]?.id).toBe('a2'); // order 0 first
+  });
+
+  it('getAchievementsByIds preserves caller order and drops unknown IDs', async () => {
+    const items = await getAchievementsByIds(['a1', 'nonexistent', 'a2']);
+    expect(items.map((i) => i.id)).toEqual(['a1', 'a2']);
   });
 
   it('getExtracurriculars returns shape matching types.ts', async () => {
@@ -1248,10 +1293,20 @@ function rowToTeacher(row: {
   photoKind: string; photoSrc: string | null; photoAlt: string | null;
   photoFrom: string | null; photoTo: string | null; photoEmoji: string | null;
 }): Teacher {
-  const photo: Teacher['photo'] =
-    row.photoKind === 'url'
-      ? { kind: 'url', src: row.photoSrc ?? '', alt: row.photoAlt ?? '' }
-      : { kind: 'gradient', from: row.photoFrom ?? '', to: row.photoTo ?? '', emoji: row.photoEmoji ?? '' };
+  let photo: Teacher['photo'];
+  if (row.photoKind === 'url') {
+    if (row.photoSrc === null || row.photoAlt === null) {
+      throw new Error(`Teacher ${row.id}: photoKind=url requires photoSrc + photoAlt`);
+    }
+    photo = { kind: 'url', src: row.photoSrc, alt: row.photoAlt };
+  } else if (row.photoKind === 'gradient') {
+    if (row.photoFrom === null || row.photoTo === null || row.photoEmoji === null) {
+      throw new Error(`Teacher ${row.id}: photoKind=gradient requires photoFrom + photoTo + photoEmoji`);
+    }
+    photo = { kind: 'gradient', from: row.photoFrom, to: row.photoTo, emoji: row.photoEmoji };
+  } else {
+    throw new Error(`Teacher ${row.id}: unknown photoKind "${row.photoKind}"`);
+  }
   return {
     id: row.id, name: row.name, position: row.position, badge: row.badge,
     category: row.category as Teacher['category'], photo,
@@ -1259,14 +1314,18 @@ function rowToTeacher(row: {
 }
 
 async function loadTeachers(): Promise<Teacher[]> {
-  const rows = await prisma.teacher.findMany({ orderBy: [{ category: 'asc' }, { order: 'asc' }] });
+  // ORDER BY categoryOrder (explicit pimpinan-first/guru/tu) + intra-category order.
+  // NOT by 'category' alphabetical — that would reorder pimpinan → guru → tu wrong.
+  const rows = await prisma.teacher.findMany({
+    orderBy: [{ categoryOrder: 'asc' }, { order: 'asc' }],
+  });
   return rows.map(rowToTeacher);
 }
 
 export const getTeachers = unstable_cache(loadTeachers, ['teachers'], { tags: ['teachers'] });
 ```
 
-- [ ] **Step 8.4: Implement achievement repo**
+- [ ] **Step 8.4: Implement achievement repo (with optional ID scoping)**
 
 Create `src/lib/data/repositories/achievement-repo.ts`:
 ```ts
@@ -1274,17 +1333,46 @@ import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db/client';
 import type { Achievement } from '@config/types';
 
-async function loadAchievements(): Promise<Achievement[]> {
-  const rows = await prisma.achievement.findMany({ orderBy: [{ order: 'asc' }, { year: 'desc' }] });
-  return rows.map((r) => ({
+function rowToAchievement(r: {
+  id: string; year: number; title: string; recipient: string;
+  organizer: string; level: string; icon: string;
+}): Achievement {
+  return {
     id: r.id, year: r.year, title: r.title, recipient: r.recipient,
     organizer: r.organizer, level: r.level as Achievement['level'], icon: r.icon,
-  }));
+  };
 }
 
-export const getAchievements = unstable_cache(loadAchievements, ['achievements'], {
+async function loadAllAchievements(): Promise<Achievement[]> {
+  const rows = await prisma.achievement.findMany({ orderBy: [{ order: 'asc' }, { year: 'desc' }] });
+  return rows.map(rowToAchievement);
+}
+
+/**
+ * All achievements, ordered. Used by /profil's full prestasi list.
+ */
+export const getAllAchievements = unstable_cache(loadAllAchievements, ['achievements', 'all'], {
   tags: ['achievements'],
 });
+
+/**
+ * Subset by explicit ID list, preserving the input order. Used by /home's
+ * featured-5 list whose IDs are stored in PageSection.achievementsMeta.featuredIds.
+ * Returns only achievements that actually exist; missing IDs are silently dropped.
+ */
+export function getAchievementsByIds(ids: readonly string[]): Promise<Achievement[]> {
+  const cached = unstable_cache(
+    async () => {
+      const rows = await prisma.achievement.findMany({ where: { id: { in: [...ids] } } });
+      const byId = new Map(rows.map((r) => [r.id, rowToAchievement(r)]));
+      // Preserve caller-provided order.
+      return ids.map((id) => byId.get(id)).filter((x): x is Achievement => x !== undefined);
+    },
+    ['achievements', 'by-ids', ids.join(',')],
+    { tags: ['achievements'] },
+  );
+  return cached();
+}
 ```
 
 - [ ] **Step 8.5: Implement extracurricular repo**
@@ -1296,7 +1384,11 @@ import { prisma } from '@/lib/db/client';
 import type { Extracurricular } from '@config/types';
 
 async function loadExtracurriculars(): Promise<Extracurricular[]> {
-  const rows = await prisma.extracurricular.findMany({ orderBy: [{ category: 'asc' }, { order: 'asc' }] });
+  // ORDER BY categoryOrder (wajib first, then olahraga/seni/akademik/keagamaan/lainnya)
+  // + intra-category order. Static config order vs alphabetical-by-category differs.
+  const rows = await prisma.extracurricular.findMany({
+    orderBy: [{ categoryOrder: 'asc' }, { order: 'asc' }],
+  });
   return rows.map((r) => {
     const base: Extracurricular = {
       id: r.id, name: r.name, category: r.category as Extracurricular['category'],
@@ -1349,7 +1441,7 @@ Create `src/__tests__/integration/repositories/remaining-repos.test.ts`:
 import { prisma } from '@/lib/db/client';
 import { getSubjectGroupsByGrade } from '@/lib/data/repositories/subject-repo';
 import { getFaqs } from '@/lib/data/repositories/faq-repo';
-import { getGalleryItems } from '@/lib/data/repositories/gallery-repo';
+import { getAllGalleryItems } from '@/lib/data/repositories/gallery-repo';
 import { getFacilitiesGrouped } from '@/lib/data/repositories/facility-repo';
 import { getOrganizationChart } from '@/lib/data/repositories/organization-repo';
 import { getDocumentSlot } from '@/lib/data/repositories/document-slot-repo';
@@ -1419,8 +1511,8 @@ describe('remaining entity repositories', () => {
     expect(faqs[0]?.category).toBe('ppdb');
   });
 
-  it('getGalleryItems returns array', async () => {
-    const items = await getGalleryItems();
+  it('getAllGalleryItems returns array', async () => {
+    const items = await getAllGalleryItems();
     expect(items).toHaveLength(1);
   });
 
@@ -1438,9 +1530,9 @@ describe('remaining entity repositories', () => {
     expect(chart[1]?.boxes[0]?.name).toBe('Bu Y');
   });
 
-  it('getDocumentSlot returns { mediaId: null } when no upload', async () => {
+  it('getDocumentSlot returns full shape with mediaId=null when no upload', async () => {
     const slot = await getDocumentSlot('kalender-akademik');
-    expect(slot?.mediaId).toBeNull();
+    expect(slot).toEqual({ id: 'kalender-akademik', mediaId: null });
   });
 
   it('getDocumentSlot returns null for unknown slot id', async () => {
@@ -1519,20 +1611,47 @@ import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db/client';
 import type { GalleryItem } from '@config/types';
 
-async function loadGalleryItems(): Promise<GalleryItem[]> {
-  const rows = await prisma.galleryItem.findMany({ orderBy: [{ order: 'asc' }] });
-  return rows.map((r) => {
-    const item: GalleryItem = {
-      id: r.id, caption: r.caption, emoji: r.emoji,
-      gradientFrom: r.gradientFrom, gradientTo: r.gradientTo,
-    };
-    if (r.category) item.category = r.category;
-    if (r.span) item.span = r.span as GalleryItem['span'];
-    return item;
-  });
+function rowToGalleryItem(r: {
+  id: string; caption: string; emoji: string; gradientFrom: string; gradientTo: string;
+  category: string | null; span: string | null;
+}): GalleryItem {
+  const item: GalleryItem = {
+    id: r.id, caption: r.caption, emoji: r.emoji,
+    gradientFrom: r.gradientFrom, gradientTo: r.gradientTo,
+  };
+  if (r.category) item.category = r.category;
+  if (r.span) item.span = r.span as GalleryItem['span'];
+  return item;
 }
 
-export const getGalleryItems = unstable_cache(loadGalleryItems, ['gallery'], { tags: ['gallery'] });
+async function loadAllGalleryItems(): Promise<GalleryItem[]> {
+  const rows = await prisma.galleryItem.findMany({ orderBy: [{ order: 'asc' }] });
+  return rows.map(rowToGalleryItem);
+}
+
+/**
+ * All gallery items. Used by /fasilitas galeri page with filter UI.
+ */
+export const getAllGalleryItems = unstable_cache(loadAllGalleryItems, ['gallery', 'all'], {
+  tags: ['gallery'],
+});
+
+/**
+ * Subset by ID list, preserving caller order. Used by /home gallery whose
+ * featured-8 IDs are stored in PageSection.galleryMeta.featuredIds.
+ */
+export function getGalleryItemsByIds(ids: readonly string[]): Promise<GalleryItem[]> {
+  const cached = unstable_cache(
+    async () => {
+      const rows = await prisma.galleryItem.findMany({ where: { id: { in: [...ids] } } });
+      const byId = new Map(rows.map((r) => [r.id, rowToGalleryItem(r)]));
+      return ids.map((id) => byId.get(id)).filter((x): x is GalleryItem => x !== undefined);
+    },
+    ['gallery', 'by-ids', ids.join(',')],
+    { tags: ['gallery'] },
+  );
+  return cached();
+}
 ```
 
 - [ ] **Step 9.6: Implement facility-repo**
@@ -1551,15 +1670,22 @@ async function loadFacilitiesGrouped(): Promise<FacilitiesGrouped> {
   const mini: FacilityMini[] = [];
   for (const r of rows) {
     if (r.kind === 'featured') {
+      if (r.description === null || r.emoji === null || r.gradientFrom === null || r.gradientTo === null) {
+        throw new Error(`Facility ${r.id}: kind=featured requires description + emoji + gradientFrom + gradientTo`);
+      }
       const card: FacilityCard = {
-        id: r.id, name: r.name, description: r.description ?? '',
-        emoji: r.emoji ?? '', gradientFrom: r.gradientFrom ?? '',
-        gradientTo: r.gradientTo ?? '',
+        id: r.id, name: r.name, description: r.description,
+        emoji: r.emoji, gradientFrom: r.gradientFrom, gradientTo: r.gradientTo,
       };
       if (r.span) card.span = r.span as FacilityCard['span'];
       featured.push(card);
+    } else if (r.kind === 'mini') {
+      if (r.icon === null) {
+        throw new Error(`Facility ${r.id}: kind=mini requires icon`);
+      }
+      mini.push({ id: r.id, name: r.name, icon: r.icon });
     } else {
-      mini.push({ id: r.id, name: r.name, icon: r.icon ?? '' });
+      throw new Error(`Facility ${r.id}: unknown kind "${r.kind}"`);
     }
   }
   return { featured, mini };
@@ -1670,6 +1796,13 @@ import { kontakPageConfig } from '../src/config/pages/kontak';
 import { siteConfigSchema } from '../src/lib/validation/schemas/site-config';
 import { navigationSchema } from '../src/lib/validation/schemas/navigation';
 
+// Maps TeacherCategory → display order (pimpinan first).
+const TEACHER_CATEGORY_ORDER: Record<string, number> = { pimpinan: 0, guru: 1, tu: 2 };
+// Maps EkskulCategory → display order (matches static config sequence).
+const EKSKUL_CATEGORY_ORDER: Record<string, number> = {
+  wajib: 0, olahraga: 1, seni: 2, akademik: 3, keagamaan: 4, lainnya: 5,
+};
+
 // Helper: dump every section of a page into PageSection rows.
 async function seedPageSections(pageKey: string, sections: Record<string, unknown>) {
   for (const [sectionKey, data] of Object.entries(sections)) {
@@ -1715,8 +1848,20 @@ async function main() {
     sambutan: homePageConfig.sambutan,
     about: homePageConfig.about,
     programs: homePageConfig.programs,
-    galleryMeta: { meta: homePageConfig.gallery.meta, ctaLabel: homePageConfig.gallery.ctaLabel, ctaHref: homePageConfig.gallery.ctaHref },
-    achievementsMeta: { meta: homePageConfig.achievements.meta, ctaLabel: homePageConfig.achievements.ctaLabel, ctaHref: homePageConfig.achievements.ctaHref },
+    // featuredIds list scopes which gallery items + achievements appear on /home,
+    // preventing the "show all 11" bug when other pages add entries to the same tables.
+    galleryMeta: {
+      meta: homePageConfig.gallery.meta,
+      ctaLabel: homePageConfig.gallery.ctaLabel,
+      ctaHref: homePageConfig.gallery.ctaHref,
+      featuredIds: homePageConfig.gallery.items.map((g) => g.id),
+    },
+    achievementsMeta: {
+      meta: homePageConfig.achievements.meta,
+      ctaLabel: homePageConfig.achievements.ctaLabel,
+      ctaHref: homePageConfig.achievements.ctaHref,
+      featuredIds: homePageConfig.achievements.items.map((a) => a.id),
+    },
     lokasi: homePageConfig.lokasi,
     ctaFinal: homePageConfig.ctaFinal,
   });
@@ -1730,7 +1875,10 @@ async function main() {
     identitas: profilPageConfig.identitas,
     strukturMeta: { meta: profilPageConfig.struktur.meta, studentNote: profilPageConfig.struktur.chart.studentNote },
     guruMeta: { meta: profilPageConfig.guru.meta, filterLabels: profilPageConfig.guru.filterLabels },
-    prestasiMeta: { meta: profilPageConfig.prestasi.meta },
+    prestasiMeta: {
+      meta: profilPageConfig.prestasi.meta,
+      featuredIds: profilPageConfig.prestasi.items.map((a) => a.id),
+    },
     ctaFinal: profilPageConfig.ctaFinal,
   });
 
@@ -1752,7 +1900,11 @@ async function main() {
     saranaMeta: { meta: fasilitasPageConfig.sarana.meta, statStrip: fasilitasPageConfig.sarana.statStrip },
     ekskulMeta: { meta: fasilitasPageConfig.ekskul.meta, statStrip: fasilitasPageConfig.ekskul.statStrip, filterLabels: fasilitasPageConfig.ekskul.filterLabels },
     kegiatan: fasilitasPageConfig.kegiatan,
-    galeriMeta: { meta: fasilitasPageConfig.galeri.meta, filterLabels: fasilitasPageConfig.galeri.filterLabels },
+    galeriMeta: {
+      meta: fasilitasPageConfig.galeri.meta,
+      filterLabels: fasilitasPageConfig.galeri.filterLabels,
+      featuredIds: fasilitasPageConfig.galeri.items.map((g) => g.id),
+    },
     tatib: fasilitasPageConfig.tatib,
     ctaFinal: fasilitasPageConfig.ctaFinal,
   });
@@ -1768,53 +1920,99 @@ async function main() {
   });
 
   // ── Entities ──
+  // Group teachers by category then assign intra-category order. categoryOrder
+  // comes from TEACHER_CATEGORY_ORDER so display follows static (pimpinan first),
+  // not alphabetical.
   console.log('==> Seed: Teachers');
-  for (let i = 0; i < profilPageConfig.guru.teachers.length; i++) {
-    const t = profilPageConfig.guru.teachers[i]!;
-    const photo = t.photo;
-    await prisma.teacher.upsert({
-      where: { id: t.id },
-      create: {
-        id: t.id, name: t.name, position: t.position, badge: t.badge, category: t.category,
-        photoKind: photo.kind, order: i,
-        ...(photo.kind === 'url'
-          ? { photoSrc: photo.src, photoAlt: photo.alt }
-          : { photoFrom: photo.from, photoTo: photo.to, photoEmoji: photo.emoji }),
-      },
-      update: {
-        name: t.name, position: t.position, badge: t.badge, category: t.category,
-        photoKind: photo.kind, order: i,
-        photoSrc: photo.kind === 'url' ? photo.src : null,
-        photoAlt: photo.kind === 'url' ? photo.alt : null,
-        photoFrom: photo.kind === 'gradient' ? photo.from : null,
-        photoTo: photo.kind === 'gradient' ? photo.to : null,
-        photoEmoji: photo.kind === 'gradient' ? photo.emoji : null,
-      },
-    });
+  const teachersByCategory = new Map<string, typeof profilPageConfig.guru.teachers>();
+  for (const t of profilPageConfig.guru.teachers) {
+    const list = teachersByCategory.get(t.category) ?? [];
+    list.push(t);
+    teachersByCategory.set(t.category, list);
+  }
+  for (const [cat, list] of teachersByCategory) {
+    const catOrder = TEACHER_CATEGORY_ORDER[cat] ?? 99;
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i]!;
+      const photo = t.photo;
+      const order = i;
+      // Field set differs by photoKind. Compute the full set once so create+update agree.
+      const photoFields =
+        photo.kind === 'url'
+          ? {
+              photoKind: 'url' as const,
+              photoSrc: photo.src, photoAlt: photo.alt,
+              photoFrom: null, photoTo: null, photoEmoji: null,
+            }
+          : {
+              photoKind: 'gradient' as const,
+              photoSrc: null, photoAlt: null,
+              photoFrom: photo.from, photoTo: photo.to, photoEmoji: photo.emoji,
+            };
+      await prisma.teacher.upsert({
+        where: { id: t.id },
+        create: {
+          id: t.id, name: t.name, position: t.position, badge: t.badge, category: t.category,
+          categoryOrder: catOrder, order, ...photoFields,
+        },
+        update: {
+          name: t.name, position: t.position, badge: t.badge, category: t.category,
+          categoryOrder: catOrder, order, ...photoFields,
+        },
+      });
+    }
   }
 
-  console.log('==> Seed: Achievements');
-  // Combine home.achievements.items + profil.prestasi.items, dedup by id (profil wins).
+  console.log('==> Seed: Achievements (combined home + profil, dedup by id)');
+  // Both home and profil reference achievements by id; merge so single row per
+  // achievement exists. /home picks 5 via featuredIds, /profil picks 6.
   const allAchievements = new Map<string, (typeof homePageConfig.achievements.items)[number]>();
   for (const a of homePageConfig.achievements.items) allAchievements.set(a.id, a);
   for (const a of profilPageConfig.prestasi.items) allAchievements.set(a.id, a);
-  let aOrder = 0;
-  for (const a of allAchievements.values()) {
+  const achievementEntries = Array.from(allAchievements.values());
+  for (let idx = 0; idx < achievementEntries.length; idx++) {
+    const a = achievementEntries[idx]!;
+    const order = idx; // SAME order value passed to both create and update — avoids post-increment trap.
     await prisma.achievement.upsert({
       where: { id: a.id },
-      create: { ...a, order: aOrder++ },
-      update: { ...a, order: aOrder },
+      create: {
+        id: a.id, year: a.year, title: a.title, recipient: a.recipient,
+        organizer: a.organizer, level: a.level, icon: a.icon, order,
+      },
+      update: {
+        year: a.year, title: a.title, recipient: a.recipient,
+        organizer: a.organizer, level: a.level, icon: a.icon, order,
+      },
     });
   }
 
   console.log('==> Seed: Extracurriculars');
-  for (let i = 0; i < fasilitasPageConfig.ekskul.items.length; i++) {
-    const e = fasilitasPageConfig.ekskul.items[i]!;
-    await prisma.extracurricular.upsert({
-      where: { id: e.id },
-      create: { ...e, order: i, achievement: e.achievement ?? null },
-      update: { ...e, order: i, achievement: e.achievement ?? null },
-    });
+  const ekskulByCategory = new Map<string, typeof fasilitasPageConfig.ekskul.items>();
+  for (const e of fasilitasPageConfig.ekskul.items) {
+    const list = ekskulByCategory.get(e.category) ?? [];
+    list.push(e);
+    ekskulByCategory.set(e.category, list);
+  }
+  for (const [cat, list] of ekskulByCategory) {
+    const catOrder = EKSKUL_CATEGORY_ORDER[cat] ?? 99;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      const order = i;
+      const achievement = e.achievement ?? null;
+      await prisma.extracurricular.upsert({
+        where: { id: e.id },
+        create: {
+          id: e.id, name: e.name, category: e.category, categoryOrder: catOrder,
+          description: e.description, pembina: e.pembina, schedule: e.schedule,
+          achievement, icon: e.icon, order,
+        },
+        update: {
+          name: e.name, category: e.category, categoryOrder: catOrder,
+          description: e.description, pembina: e.pembina, schedule: e.schedule,
+          achievement, icon: e.icon, order,
+        },
+      });
+    }
   }
 
   console.log('==> Seed: Subjects');
@@ -1823,15 +2021,16 @@ async function main() {
     let order = 0;
     for (const group of tab.groups) {
       for (const s of group.subjects) {
+        const o = order++; // capture before next iteration so update uses same value
         await prisma.subject.upsert({
           where: { id: s.id },
           create: {
             id: s.id, grade, groupId: group.id, groupTitle: group.title,
-            name: s.name, icon: s.icon, iconBg: s.iconBg, hours: s.hours, order: order++,
+            name: s.name, icon: s.icon, iconBg: s.iconBg, hours: s.hours, order: o,
           },
           update: {
             grade, groupId: group.id, groupTitle: group.title,
-            name: s.name, icon: s.icon, iconBg: s.iconBg, hours: s.hours, order,
+            name: s.name, icon: s.icon, iconBg: s.iconBg, hours: s.hours, order: o,
           },
         });
       }
@@ -1841,72 +2040,88 @@ async function main() {
   console.log('==> Seed: Faqs');
   for (let i = 0; i < kontakPageConfig.faq.items.length; i++) {
     const f = kontakPageConfig.faq.items[i]!;
+    const order = i;
     await prisma.faq.upsert({
       where: { id: f.id },
-      create: { ...f, order: i },
-      update: { ...f, order: i },
+      create: { id: f.id, question: f.question, answer: f.answer, category: f.category, order },
+      update: { question: f.question, answer: f.answer, category: f.category, order },
     });
   }
 
-  console.log('==> Seed: GalleryItems');
-  // Combine home + fasilitas gallery; dedup by id.
+  console.log('==> Seed: GalleryItems (combined home + fasilitas, dedup by id)');
   const allGallery = new Map<string, (typeof homePageConfig.gallery.items)[number]>();
   for (const g of homePageConfig.gallery.items) allGallery.set(g.id, g);
   for (const g of fasilitasPageConfig.galeri.items) allGallery.set(g.id, g);
-  let gOrder = 0;
-  for (const g of allGallery.values()) {
+  const galleryEntries = Array.from(allGallery.values());
+  for (let idx = 0; idx < galleryEntries.length; idx++) {
+    const g = galleryEntries[idx]!;
+    const order = idx;
     await prisma.galleryItem.upsert({
       where: { id: g.id },
       create: {
         id: g.id, caption: g.caption, emoji: g.emoji,
         gradientFrom: g.gradientFrom, gradientTo: g.gradientTo,
-        category: g.category ?? null, span: g.span ?? null, order: gOrder++,
+        category: g.category ?? null, span: g.span ?? null, order,
       },
       update: {
         caption: g.caption, emoji: g.emoji,
         gradientFrom: g.gradientFrom, gradientTo: g.gradientTo,
-        category: g.category ?? null, span: g.span ?? null, order: gOrder,
+        category: g.category ?? null, span: g.span ?? null, order,
       },
     });
   }
 
   console.log('==> Seed: Facilities');
-  let fOrder = 0;
-  for (const f of fasilitasPageConfig.sarana.featured) {
+  for (let i = 0; i < fasilitasPageConfig.sarana.featured.length; i++) {
+    const f = fasilitasPageConfig.sarana.featured[i]!;
+    const order = i;
     await prisma.facility.upsert({
       where: { id: f.id },
       create: {
         id: f.id, kind: 'featured', name: f.name, description: f.description,
         emoji: f.emoji, gradientFrom: f.gradientFrom, gradientTo: f.gradientTo,
-        span: f.span ?? null, order: fOrder++,
+        span: f.span ?? null, icon: null, order,
       },
       update: {
         kind: 'featured', name: f.name, description: f.description,
         emoji: f.emoji, gradientFrom: f.gradientFrom, gradientTo: f.gradientTo,
-        span: f.span ?? null, order: fOrder,
+        span: f.span ?? null, icon: null, order,
       },
     });
   }
-  let mOrder = 0;
-  for (const m of fasilitasPageConfig.sarana.mini) {
+  for (let i = 0; i < fasilitasPageConfig.sarana.mini.length; i++) {
+    const m = fasilitasPageConfig.sarana.mini[i]!;
+    const order = i;
     await prisma.facility.upsert({
       where: { id: m.id },
-      create: { id: m.id, kind: 'mini', name: m.name, icon: m.icon, order: mOrder++ },
-      update: { kind: 'mini', name: m.name, icon: m.icon, order: mOrder },
+      create: {
+        id: m.id, kind: 'mini', name: m.name, icon: m.icon,
+        description: null, emoji: null, gradientFrom: null, gradientTo: null, span: null,
+        order,
+      },
+      update: {
+        kind: 'mini', name: m.name, icon: m.icon,
+        description: null, emoji: null, gradientFrom: null, gradientTo: null, span: null,
+        order,
+      },
     });
   }
 
-  console.log('==> Seed: OrganizationChart');
+  console.log('==> Seed: OrganizationChart (wipe + recreate for stable structure)');
+  // OrganizationMember structure changes irregularly between deployments. Index-based IDs
+  // (lvl0-0, lvl0-1, ...) become orphans if static config rearranges. Wiping + recreating
+  // is simple, fast (few rows), and idempotent. Phase 2 admin UI will eventually replace
+  // this with stable cuid()-generated IDs managed via CRUD UI.
+  await prisma.organizationMember.deleteMany({});
   let omOrder = 0;
   for (let levelIdx = 0; levelIdx < profilPageConfig.struktur.chart.levels.length; levelIdx++) {
     const lvl = profilPageConfig.struktur.chart.levels[levelIdx]!;
     for (let bIdx = 0; bIdx < lvl.boxes.length; bIdx++) {
       const box = lvl.boxes[bIdx]!;
       const id = `${lvl.id}-${bIdx}`;
-      await prisma.organizationMember.upsert({
-        where: { id },
-        create: { id, name: box.name, role: box.title, level: levelIdx, order: omOrder++ },
-        update: { name: box.name, role: box.title, level: levelIdx, order: omOrder },
+      const order = omOrder++;
+      await prisma.organizationMember.create({
+        data: { id, name: box.name, role: box.title, level: levelIdx, order },
       });
     }
   }
@@ -2078,25 +2293,37 @@ describe('page assemblers (post-seed)', () => {
 
   afterAll(async () => { await prisma.$disconnect(); });
 
-  it('assembleHome returns HomePageConfig shape', async () => {
+  it('assembleHome scopes achievements + gallery via featuredIds', async () => {
     const home = await assembleHome();
     expect(home.hero.titleLine1).toMatch(/Selamat Datang/);
     expect(home.stats.cards.length).toBeGreaterThan(0);
     expect(home.sambutan.signatureName).toBeTruthy();
     expect(home.programs.cards.length).toBeGreaterThan(0);
-    expect(home.gallery.items.length).toBeGreaterThan(0);
-    expect(home.achievements.items.length).toBeGreaterThan(0);
+    // Verify scoping: home should show ONLY its featured items (5 achievements
+    // + 8 gallery), NOT the combined dedup'd pool (would be 11 and 18).
+    // This is the visual-parity bug the per-page featuredIds fix prevents.
+    const { homePageConfig } = await import('@config/pages/home');
+    expect(home.achievements.items).toHaveLength(homePageConfig.achievements.items.length);
+    expect(home.gallery.items).toHaveLength(homePageConfig.gallery.items.length);
     expect(home.lokasi.cards.length).toBeGreaterThan(0);
     expect(home.ctaFinal.title).toBeTruthy();
   });
 
-  it('assembleProfile returns ProfilePageConfig shape', async () => {
+  it('assembleProfile scopes prestasi via featuredIds', async () => {
     const profile = await assembleProfile();
     expect(profile.sejarah.timeline.length).toBeGreaterThan(0);
     expect(profile.visiMisi.misi.items.length).toBeGreaterThan(0);
     expect(profile.guru.teachers.length).toBeGreaterThan(0);
-    expect(profile.prestasi.items.length).toBeGreaterThan(0);
+    const { profilPageConfig } = await import('@config/pages/profil');
+    // /profil's prestasi section displays only the profil-featured set (6),
+    // not the combined achievements pool.
+    expect(profile.prestasi.items).toHaveLength(profilPageConfig.prestasi.items.length);
     expect(profile.struktur.chart.levels.length).toBeGreaterThan(0);
+  });
+
+  it('assembleProfile teachers ordered by category (pimpinan first)', async () => {
+    const profile = await assembleProfile();
+    expect(profile.guru.teachers[0]?.category).toBe('pimpinan');
   });
 
   it('assembleAcademic returns AcademicPageConfig shape', async () => {
@@ -2107,12 +2334,15 @@ describe('page assemblers (post-seed)', () => {
     expect(academic.kalender.events.length).toBeGreaterThan(0);
   });
 
-  it('assembleFacilities returns FacilitiesPageConfig shape', async () => {
+  it('assembleFacilities scopes galeri via featuredIds; ekskul ordered by category sequence', async () => {
     const facilities = await assembleFacilities();
     expect(facilities.sarana.featured.length).toBeGreaterThan(0);
     expect(facilities.sarana.mini.length).toBeGreaterThan(0);
-    expect(facilities.ekskul.items.length).toBeGreaterThan(0);
-    expect(facilities.galeri.items.length).toBeGreaterThan(0);
+    const { fasilitasPageConfig } = await import('@config/pages/fasilitas');
+    // Ekskul: full list, but ordered by categoryOrder (wajib first), not alphabetical.
+    expect(facilities.ekskul.items[0]?.category).toBe('wajib');
+    // Galeri: scoped to fasilitas-only featured set, not combined with home.
+    expect(facilities.galeri.items).toHaveLength(fasilitasPageConfig.galeri.items.length);
   });
 
   it('assembleContact returns ContactPageConfig shape', async () => {
@@ -2132,18 +2362,25 @@ Expected: FAIL — modules not found.
 
 Create `src/lib/data/assemblers/home.ts`:
 ```ts
+// Phase 1: types cast on JSONB sections are unchecked at runtime. Seed is the
+// only writer in Phase 1 (Zod-validated). Phase 2 will add Zod-on-write so this
+// remains safe; if Phase 2's admin UI ever stores invalid shapes, this assembler
+// will surface them via render errors rather than silent data corruption.
 import { getPageSections } from '../repositories/page-section-repo';
-import { getAchievements } from '../repositories/achievement-repo';
-import { getGalleryItems } from '../repositories/gallery-repo';
+import { getAchievementsByIds } from '../repositories/achievement-repo';
+import { getGalleryItemsByIds } from '../repositories/gallery-repo';
 import type {
   HomePageConfig, HeroConfig, SambutanConfig, AboutConfig,
-  CtaFinal, SectionMeta, StatCard, ProgramCard, GalleryItem,
-  Achievement, ContactCard, CtaLink,
+  CtaFinal, SectionMeta, StatCard, ProgramCard, ContactCard, CtaLink,
 } from '@config/types';
 
-// Shape stored in DB for sections that wrap "meta + cta" without items.
-type GalleryMetaSection = { meta: SectionMeta; ctaLabel: string; ctaHref: string };
-type AchievementsMetaSection = { meta: SectionMeta; ctaLabel: string; ctaHref: string };
+// Shape stored in DB for sections that wrap "meta + cta + featuredIds".
+type GalleryMetaSection = {
+  meta: SectionMeta; ctaLabel: string; ctaHref: string; featuredIds: string[];
+};
+type AchievementsMetaSection = {
+  meta: SectionMeta; ctaLabel: string; ctaHref: string; featuredIds: string[];
+};
 type LokasiSection = {
   meta: SectionMeta; panelTitle: string; panelDescription: string;
   cards: ContactCard[]; primary: CtaLink; secondary: CtaLink; copyText: string;
@@ -2152,11 +2389,7 @@ type StatsSection = { meta: SectionMeta; cards: StatCard[] };
 type ProgramsSection = { meta: SectionMeta; cards: ProgramCard[] };
 
 export async function assembleHome(): Promise<HomePageConfig> {
-  const [sections, achievements, gallery] = await Promise.all([
-    getPageSections('home'),
-    getAchievements(),
-    getGalleryItems(),
-  ]);
+  const sections = await getPageSections('home');
 
   const hero = sections.hero as HeroConfig;
   const stats = sections.stats as StatsSection;
@@ -2168,6 +2401,13 @@ export async function assembleHome(): Promise<HomePageConfig> {
   const lokasi = sections.lokasi as LokasiSection;
   const ctaFinal = sections.ctaFinal as CtaFinal;
 
+  // Scoped fetch: home only shows the IDs explicitly featured for home.
+  // This prevents "all 11 achievements" / "all 18 gallery items" bug.
+  const [achievements, gallery] = await Promise.all([
+    getAchievementsByIds(achievementsMeta.featuredIds),
+    getGalleryItemsByIds(galleryMeta.featuredIds),
+  ]);
+
   return {
     hero,
     stats,
@@ -2176,13 +2416,13 @@ export async function assembleHome(): Promise<HomePageConfig> {
     programs,
     gallery: {
       meta: galleryMeta.meta,
-      items: gallery as GalleryItem[],
+      items: gallery,
       ctaLabel: galleryMeta.ctaLabel,
       ctaHref: galleryMeta.ctaHref,
     },
     achievements: {
       meta: achievementsMeta.meta,
-      items: achievements as Achievement[],
+      items: achievements,
       ctaLabel: achievementsMeta.ctaLabel,
       ctaHref: achievementsMeta.ctaHref,
     },
@@ -2196,9 +2436,10 @@ export async function assembleHome(): Promise<HomePageConfig> {
 
 Create `src/lib/data/assemblers/profil.ts`:
 ```ts
+// See header note in assemblers/home.ts about Phase 1 type-cast safety.
 import { getPageSections } from '../repositories/page-section-repo';
 import { getTeachers } from '../repositories/teacher-repo';
-import { getAchievements } from '../repositories/achievement-repo';
+import { getAchievementsByIds } from '../repositories/achievement-repo';
 import { getOrganizationChart } from '../repositories/organization-repo';
 import type {
   ProfilePageConfig, PageHeaderConfig, VisiMisiConfig,
@@ -2208,15 +2449,10 @@ import type {
 type SejarahSection = ProfilePageConfig['sejarah'];
 type StrukturMetaSection = { meta: SectionMeta; studentNote: string };
 type GuruMetaSection = { meta: SectionMeta; filterLabels: ProfilePageConfig['guru']['filterLabels'] };
-type PrestasiMetaSection = { meta: SectionMeta };
+type PrestasiMetaSection = { meta: SectionMeta; featuredIds: string[] };
 
 export async function assembleProfile(): Promise<ProfilePageConfig> {
-  const [sections, teachers, achievements, chartLevels] = await Promise.all([
-    getPageSections('profil'),
-    getTeachers(),
-    getAchievements(),
-    getOrganizationChart(),
-  ]);
+  const sections = await getPageSections('profil');
 
   const pageHeader = sections.pageHeader as PageHeaderConfig;
   const sejarah = sections.sejarah as SejarahSection;
@@ -2227,6 +2463,13 @@ export async function assembleProfile(): Promise<ProfilePageConfig> {
   const guruMeta = sections.guruMeta as GuruMetaSection;
   const prestasiMeta = sections.prestasiMeta as PrestasiMetaSection;
   const ctaFinal = sections.ctaFinal as CtaFinal;
+
+  // Fetch entities only after we have the IDs needed.
+  const [teachers, achievements, chartLevels] = await Promise.all([
+    getTeachers(),
+    getAchievementsByIds(prestasiMeta.featuredIds),
+    getOrganizationChart(),
+  ]);
 
   return {
     pageHeader,
@@ -2316,13 +2559,14 @@ export async function assembleAcademic(): Promise<AcademicPageConfig> {
 
 Create `src/lib/data/assemblers/fasilitas.ts`:
 ```ts
+// See header note in assemblers/home.ts about Phase 1 type-cast safety.
 import { getPageSections } from '../repositories/page-section-repo';
 import { getExtracurriculars } from '../repositories/extracurricular-repo';
-import { getGalleryItems } from '../repositories/gallery-repo';
+import { getGalleryItemsByIds } from '../repositories/gallery-repo';
 import { getFacilitiesGrouped } from '../repositories/facility-repo';
 import type {
   FacilitiesPageConfig, PageHeaderConfig, KegiatanCard,
-  AccordionContent, CtaFinal, SectionMeta, EkskulCategory,
+  AccordionContent, CtaFinal, SectionMeta,
 } from '@config/types';
 
 type SaranaMetaSection = { meta: SectionMeta; statStrip: { value: string; label: string }[] };
@@ -2335,6 +2579,7 @@ type KegiatanSection = { meta: SectionMeta; cards: KegiatanCard[] };
 type GaleriMetaSection = {
   meta: SectionMeta;
   filterLabels: FacilitiesPageConfig['galeri']['filterLabels'];
+  featuredIds: string[];
 };
 type TatibSection = {
   meta: SectionMeta;
@@ -2344,12 +2589,7 @@ type TatibSection = {
 };
 
 export async function assembleFacilities(): Promise<FacilitiesPageConfig> {
-  const [sections, ekskul, gallery, fac] = await Promise.all([
-    getPageSections('fasilitas'),
-    getExtracurriculars(),
-    getGalleryItems(),
-    getFacilitiesGrouped(),
-  ]);
+  const sections = await getPageSections('fasilitas');
 
   const pageHeader = sections.pageHeader as PageHeaderConfig;
   const saranaMeta = sections.saranaMeta as SaranaMetaSection;
@@ -2358,6 +2598,12 @@ export async function assembleFacilities(): Promise<FacilitiesPageConfig> {
   const galeriMeta = sections.galeriMeta as GaleriMetaSection;
   const tatib = sections.tatib as TatibSection;
   const ctaFinal = sections.ctaFinal as CtaFinal;
+
+  const [ekskul, gallery, fac] = await Promise.all([
+    getExtracurriculars(),
+    getGalleryItemsByIds(galeriMeta.featuredIds),
+    getFacilitiesGrouped(),
+  ]);
 
   return {
     pageHeader,
@@ -2549,24 +2795,35 @@ export class ApiContentProvider implements ContentProvider {
 }
 ```
 
-- [ ] **Step 12.4: Update factory if needed**
+- [ ] **Step 12.4: Update factory + downstream test**
 
 Inspect `src/lib/data/index.ts`. Existing factory:
 ```ts
 new ApiContentProvider(process.env.NEXT_PUBLIC_API_BASE_URL ?? '')
 ```
 
-The new ApiContentProvider constructor takes no args. Update the factory to drop the base URL arg:
-```ts
-new ApiContentProvider()
-```
-
-Use sed:
+The new ApiContentProvider constructor takes no args. Update the factory:
 ```bash
 sed -i.bak "s|new ApiContentProvider(process.env.NEXT_PUBLIC_API_BASE_URL ?? '')|new ApiContentProvider()|" src/lib/data/index.ts && rm src/lib/data/index.ts.bak
 ```
 
 Verify: `grep -n "ApiContentProvider" src/lib/data/index.ts` should show plain construction.
+
+**Also update the existing unit test** at `src/__tests__/lib/data/getContentProvider.test.ts` if it constructs `ApiContentProvider` with a baseUrl argument. Find the spot (look for `new ApiContentProvider(...)`) and remove the argument. Run:
+
+```bash
+grep -n "new ApiContentProvider" src/__tests__/lib/data/getContentProvider.test.ts
+```
+
+If matches found, edit by hand (don't sed — context-sensitive). Replace `new ApiContentProvider('...')` with `new ApiContentProvider()`. Then run `npm test -- --testPathPattern='getContentProvider'` to confirm it passes.
+
+**Decide on `NEXT_PUBLIC_API_BASE_URL` env var**: it's now dead config (no consumer). Two options:
+- **Recommended**: remove from `src/lib/env.ts` (client block) AND from `.env.example`. Future Phase 3 (Cloudinary) doesn't need this — it has its own env vars.
+- **Defer**: keep it for now; remove during Phase 1 cleanup or Phase 3 housekeeping.
+
+For Phase 1, **remove it** to keep env.ts clean. Edit `src/lib/env.ts`: drop the `NEXT_PUBLIC_API_BASE_URL` line from both `client` and `runtimeEnv` blocks. Edit `.env.example`: remove the `NEXT_PUBLIC_API_BASE_URL=` line and surrounding comment.
+
+Verify: `npm run typecheck` clean after edit.
 
 - [ ] **Step 12.5: Run integration test, expect PASS**
 
@@ -2582,6 +2839,8 @@ Expected: clean.
 
 ```bash
 git add src/lib/data/ApiContentProvider.ts src/lib/data/index.ts \
+        src/lib/env.ts .env.example \
+        src/__tests__/lib/data/getContentProvider.test.ts \
         src/__tests__/integration/data/api-content-provider.test.ts
 git commit -m "feat(data): ApiContentProvider full Prisma implementation"
 ```
@@ -2598,7 +2857,7 @@ git commit -m "feat(data): ApiContentProvider full Prisma implementation"
 - Modify: `.env.local` (local switch)
 - Modify: `playwright.config.ts` (E2E uses api now)
 
-- [ ] **Step 13.1: Run content seed against test DB to ensure data ready**
+- [ ] **Step 13.1: Run content seed against local test DB (manual smoke)**
 
 Run:
 ```bash
@@ -2607,7 +2866,32 @@ DATABASE_URL="postgresql://test:test@localhost:5433/smpn3_test?schema=public" np
 
 Expected: success.
 
-- [ ] **Step 13.2: Update Playwright env to use api source**
+- [ ] **Step 13.2: Wire content seed into Playwright global-setup**
+
+The local smoke in 13.1 populates the dev DB, but CI starts from a fresh Postgres each run. Add content seed to `playwright/global-setup.ts` AFTER `prisma migrate deploy` and BEFORE the e2e user fixture seeding.
+
+Modify `playwright/global-setup.ts`:
+
+```ts
+// existing imports + setup …
+execSync('npx prisma migrate deploy', { ... });
+
+// NEW: seed content tables. Idempotent + required for api-source E2E.
+execSync('npx tsx scripts/seed-content.ts', {
+  stdio: 'inherit',
+  env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+});
+
+// existing: delete e2e users + recreate them …
+```
+
+Verify by reading the file:
+```bash
+grep -n "seed-content" playwright/global-setup.ts
+```
+Should show one match.
+
+- [ ] **Step 13.3: Update Playwright env to use api source**
 
 In `playwright.config.ts`, find `webServer.env.NEXT_PUBLIC_DATA_SOURCE: 'static'` and change to `'api'`.
 
@@ -2617,29 +2901,29 @@ grep -n "NEXT_PUBLIC_DATA_SOURCE" playwright.config.ts
 ```
 Should show `'api'`.
 
-- [ ] **Step 13.3: Run visual baseline tests against api source**
+- [ ] **Step 13.4: Run visual baseline tests against api source**
 
-Run: `npm run e2e -- --testPathPattern='visual-baseline'`
-Expected: 5 tests pass (no pixel diff vs the Phase-0 baselines we captured pre-CTA-change in Task 1, then re-captured post-CTA-change in Task 4).
+Run: `npm run e2e -- playwright/tests/visual-baseline.spec.ts`
+Expected: 5 tests pass (no pixel diff vs the baselines re-captured post-CTA-change in Task 4).
 
-If any test fails: a visible drift was introduced by the data layer. Inspect screenshot diff in `test-results/`. Possible causes:
-- Order of items differs (achievements, gallery, etc.) — fix ordering in repo
-- Missing field — fix assembler mapping
-- Different formatting of any field — fix seed or assembler
+If any test fails: a visible drift was introduced by the data layer. Inspect screenshot diff in `test-results/`. Most likely causes (and where to fix):
+- **Order of items differs**: teachers (must be pimpinan→guru→tu, not alphabetical) → check seed `categoryOrder` (Task 10) + teacher-repo `ORDER BY categoryOrder` (Task 8).
+- **Counts differ**: home shows 11 achievements not 5, or 18 gallery items not 8 → `featuredIds` not stored or not used → check seed page-section dump (Task 10) + assembler `getAchievementsByIds` / `getGalleryItemsByIds` (Task 11).
+- **Missing field**: assembler returns undefined where static had a value → cross-reference seed page-section sectionKey vs assembler's `sections.<key> as ...` cast.
 
 Once all pass, no fixes needed.
 
-- [ ] **Step 13.4: Run public smoke test too**
+- [ ] **Step 13.5: Run public smoke test too**
 
-Run: `npm run e2e -- --testPathPattern='public-smoke'`
+Run: `npm run e2e -- playwright/tests/public-smoke.spec.ts`
 Expected: 5 tests pass (no console errors).
 
-- [ ] **Step 13.5: Run full Playwright suite (login + public + visual baseline)**
+- [ ] **Step 13.6: Run full Playwright suite (login + public + visual baseline)**
 
 Run: `npm run e2e`
 Expected: 15 tests pass total (5 login/force-change + 5 public smoke + 5 visual baseline).
 
-- [ ] **Step 13.6: Update `.env.local` for local dev**
+- [ ] **Step 13.7: Update `.env.local` for local dev**
 
 In `.env.local`, change:
 ```
@@ -2658,7 +2942,7 @@ grep NEXT_PUBLIC_DATA_SOURCE .env.local
 
 Expected: `NEXT_PUBLIC_DATA_SOURCE=api`.
 
-- [ ] **Step 13.7: Manual smoke**
+- [ ] **Step 13.8: Manual smoke**
 
 Run dev server: `DATABASE_URL="postgresql://test:test@localhost:5433/smpn3_test?schema=public" PORT=3001 npm run dev` (background).
 
@@ -2672,14 +2956,14 @@ In browser (or curl):
 
 Stop dev server when done.
 
-- [ ] **Step 13.8: Commit**
+- [ ] **Step 13.9: Commit**
 
 ```bash
-git add playwright.config.ts
+git add playwright.config.ts playwright/global-setup.ts
 git commit -m "feat(data): switch NEXT_PUBLIC_DATA_SOURCE to api + verify visual parity"
 ```
 
-Note: `.env.local` is gitignored, so its change is local only. Document in README.
+Note: `.env.local` is gitignored, so its change is local only. Document in README (Task 14).
 
 ---
 
@@ -2707,22 +2991,38 @@ Phase 2 selanjutnya akan membangun admin dashboard CRUD UI. Lihat [docs/superpow
 In `scripts/deploy.sh`, add a seed step right after `npx prisma migrate deploy`:
 
 ```bash
-echo "==> Seed content (idempotent)"
+echo "==> Seed content (Phase 1: idempotent population from src/config/)"
+# TODO Phase 2: when admin CRUD ships, this will overwrite admin edits on every deploy.
+# Conditionalize (e.g., only run if no admin-edited marker row) or remove from deploy.sh.
 npm run db:seed:content
 ```
 
 Place it before `npm run build`.
 
-- [ ] **Step 14.3: Update README with Phase 1 seed instructions**
+- [ ] **Step 14.3: Update README with Phase 1 deployment instructions**
 
-In the `## Status` block or a new subsection, add a note:
+In the `## Status` block or a new subsection, add:
 
 ```markdown
-### First-time Phase 1 deployment
+### Phase 1 deployment notes
 
-Setelah `prisma migrate deploy` selesai, jalankan `npm run db:seed:content` (idempotent — aman dijalankan ulang). Deploy script `scripts/deploy.sh` sudah include step ini.
+**⚠️ WAJIB**: Set `NEXT_PUBLIC_DATA_SOURCE=api` di production env (PM2 ecosystem file atau systemd env) sebelum first Phase 1 deploy. Tanpa ini, site tetap render dari StaticContentProvider (stale snapshot dari src/config/) — admin edits di Phase 2+ tidak akan muncul.
 
-Untuk dev lokal: `DATABASE_URL="..." npm run db:seed:content` setelah migrate.
+**Verify production env**:
+```bash
+# Di VPS, sebelum deploy:
+echo $NEXT_PUBLIC_DATA_SOURCE   # harus "api"
+```
+
+**First-time deploy flow** (deploy script handle ini otomatis):
+1. `prisma migrate deploy` — apply schema
+2. `npm run db:seed:content` — populate dari src/config/ (idempotent)
+3. `npm run build` — production build dengan api source
+4. `pm2 reload smpn3`
+
+**Dev lokal**: setelah migrate, jalankan `DATABASE_URL="..." npm run db:seed:content` dan set `NEXT_PUBLIC_DATA_SOURCE=api` di `.env.local`.
+
+**⚠️ Phase 2 caveat**: deploy script saat ini selalu re-seed dari src/config/. Setelah Phase 2 (admin CRUD) ship, edit production data via admin UI akan **overwritten** oleh deploy. Phase 2 plan akan mengkonditionalisasi seed (e.g., hanya kalau marker row absent, atau hapus step ini dari deploy.sh).
 ```
 
 - [ ] **Step 14.4: Run all checks**
@@ -2750,22 +3050,27 @@ git commit -m "docs(phase-1): update README + add content seed to deploy script"
 ## Phase 1 Done Criteria
 
 - [ ] All entity tables + PageSection migration applied (`prisma/migrations/<timestamp>_phase1_content_schema/`)
+- [ ] Schema includes `categoryOrder` on Teacher + Extracurricular (display order != alphabetical)
 - [ ] Zod schemas for SiteConfig, Navigation, and all 8 entities
-- [ ] 11 repository files (1 per entity + site + page-sections + document-slot)
-- [ ] 5 assembler files (one per page)
+- [ ] 11 repository files. Achievement + Gallery repos have BOTH all-fetch AND by-ids variants
+- [ ] 5 assembler files. Home + Profil + Fasilitas use `featuredIds` to scope per-page lists
 - [ ] `ApiContentProvider` fully implemented (no more `notImplemented()`)
-- [ ] `scripts/seed-content.ts` idempotent (verified by integration test)
+- [ ] `scripts/seed-content.ts` idempotent (verified by integration test) + stores `featuredIds` per page section
 - [ ] `npm run db:seed:content` populates DB from static config
-- [ ] CTA "Info PPDB" → "Kontak" (config + Navbar updated, tests pass)
-- [ ] Visual baseline tests pass with `NEXT_PUBLIC_DATA_SOURCE=api`
+- [ ] CTA "Info PPDB" → "Kontak" (config + Navbar + test guard updated, tests pass)
+- [ ] Visual baseline tests pass with `NEXT_PUBLIC_DATA_SOURCE=api` (specifically: home shows 5 achievements + 8 gallery, NOT 11/18; teachers ordered pimpinan→guru→tu, NOT alphabetically)
 - [ ] Public site smoke tests pass with `api` source
 - [ ] All Phase 0 E2E still pass (login, force-change-password)
+- [ ] Playwright global-setup runs `scripts/seed-content.ts` so CI works from fresh DB
 - [ ] `npm test` green (existing 83 + ~30 new unit tests)
 - [ ] `npm run test:int` green (existing 14 + ~25 new integration tests)
 - [ ] `npm run build` clean
 - [ ] `npm run lint` + `npm run typecheck` clean
-- [ ] README updated with Phase 1 status
-- [ ] Deploy script includes content seed step
+- [ ] `NEXT_PUBLIC_API_BASE_URL` removed from `env.ts` and `.env.example` (dead config)
+- [ ] `getContentProvider.test.ts` updated for new constructor signature
+- [ ] StaticContentProvider still compiles (regression safety — `npm run typecheck` covers this)
+- [ ] README updated with Phase 1 status + production env warning (`NEXT_PUBLIC_DATA_SOURCE=api`)
+- [ ] Deploy script includes content seed step + Phase 2 TODO comment
 - [ ] `.env.local` switched to `api` (documented in README; gitignored so not committed)
 
 ---
