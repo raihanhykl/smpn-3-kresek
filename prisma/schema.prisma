@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  name                String
+  role                Role
+  mustChangePassword  Boolean   @default(false)
+  passwordChangedAt   DateTime?
+  createdAt           DateTime  @default(now())
+  lastLoginAt         DateTime?
+  sessions            Session[]
+  auditLogs           AuditLog[]
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  target    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  // Restrict: audit trail is forensic evidence and must survive user deletion.
+  // Deleting a user with audit rows will fail loudly; the right cleanup path is
+  // to anonymize (set userId to a tombstone user) or archive, never cascade.
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([target, createdAt])
+}

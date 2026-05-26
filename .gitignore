@@ -37,3 +37,5 @@ next-env.d.ts
 .phase*-done
 .playwright-mcp/
 .superpowers/
+
+/src/generated/prisma
