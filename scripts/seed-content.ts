@@ -1,0 +1,358 @@
+/* eslint-disable no-console */
+import { prisma } from '../src/lib/db/client';
+import { siteConfig as rawSite } from '../src/config/site';
+import { navigation as rawNav } from '../src/config/navigation';
+import { homePageConfig } from '../src/config/pages/home';
+import { profilPageConfig } from '../src/config/pages/profil';
+import { akademikPageConfig } from '../src/config/pages/akademik';
+import { fasilitasPageConfig } from '../src/config/pages/fasilitas';
+import { kontakPageConfig } from '../src/config/pages/kontak';
+import { siteConfigSchema } from '../src/lib/validation/schemas/site-config';
+import { navigationSchema } from '../src/lib/validation/schemas/navigation';
+
+// Maps TeacherCategory → display order (pimpinan first).
+const TEACHER_CATEGORY_ORDER: Record<string, number> = { pimpinan: 0, guru: 1, tu: 2 };
+// Maps EkskulCategory → display order (matches static config sequence).
+const EKSKUL_CATEGORY_ORDER: Record<string, number> = {
+  wajib: 0, olahraga: 1, seni: 2, akademik: 3, keagamaan: 4, lainnya: 5,
+};
+
+// Helper: dump every section of a page into PageSection rows.
+async function seedPageSections(pageKey: string, sections: Record<string, unknown>) {
+  for (const [sectionKey, data] of Object.entries(sections)) {
+    await prisma.pageSection.upsert({
+      where: { pageKey_sectionKey: { pageKey, sectionKey } },
+      create: { pageKey, sectionKey, data: data as object },
+      update: { data: data as object },
+    });
+  }
+}
+
+async function main() {
+  console.log('==> Seed: SiteConfig + Navigation');
+  // Phase 1: ppdbCta → kontakCta (already renamed in src/config/site.ts at Task 4).
+  // Strip any leftover ppdbCta and ensure kontakCta is present.
+  const rawSiteAny = rawSite as typeof rawSite & { ppdbCta?: unknown };
+  const { ppdbCta: _ppdb, navigation: _navFromSite, ...siteRest } = rawSiteAny;
+  void _ppdb;
+  void _navFromSite;
+  const siteData = {
+    ...siteRest,
+    // Force kontakCta in case any consumer left the old shape; site.ts already has it.
+    kontakCta: (rawSiteAny as { kontakCta?: { label: string; href: string } }).kontakCta ?? { label: 'Kontak', href: '/kontak' },
+  };
+  siteConfigSchema.parse({ ...siteData, navigation: rawNav });
+  navigationSchema.parse(rawNav);
+
+  await prisma.siteConfig.upsert({
+    where: { id: 'singleton' },
+    create: { id: 'singleton', data: siteData as object },
+    update: { data: siteData as object },
+  });
+  await prisma.navigation.upsert({
+    where: { id: 'singleton' },
+    create: { id: 'singleton', items: rawNav as unknown as object },
+    update: { items: rawNav as unknown as object },
+  });
+
+  // ── Page sections ──
+  console.log('==> Seed: PageSection rows (home)');
+  await seedPageSections('home', {
+    hero: homePageConfig.hero,
+    stats: homePageConfig.stats,
+    sambutan: homePageConfig.sambutan,
+    about: homePageConfig.about,
+    programs: homePageConfig.programs,
+    // featuredIds list scopes which gallery items + achievements appear on /home,
+    // preventing the "show all 11" bug when other pages add entries to the same tables.
+    galleryMeta: {
+      meta: homePageConfig.gallery.meta,
+      ctaLabel: homePageConfig.gallery.ctaLabel,
+      ctaHref: homePageConfig.gallery.ctaHref,
+      featuredIds: homePageConfig.gallery.items.map((g) => g.id),
+    },
+    achievementsMeta: {
+      meta: homePageConfig.achievements.meta,
+      ctaLabel: homePageConfig.achievements.ctaLabel,
+      ctaHref: homePageConfig.achievements.ctaHref,
+      featuredIds: homePageConfig.achievements.items.map((a) => a.id),
+    },
+    lokasi: homePageConfig.lokasi,
+    ctaFinal: homePageConfig.ctaFinal,
+  });
+
+  console.log('==> Seed: PageSection rows (profil)');
+  await seedPageSections('profil', {
+    pageHeader: profilPageConfig.pageHeader,
+    sejarah: profilPageConfig.sejarah,
+    visiMisi: profilPageConfig.visiMisi,
+    tujuan: profilPageConfig.tujuan,
+    identitas: profilPageConfig.identitas,
+    strukturMeta: { meta: profilPageConfig.struktur.meta, studentNote: profilPageConfig.struktur.chart.studentNote },
+    guruMeta: { meta: profilPageConfig.guru.meta, filterLabels: profilPageConfig.guru.filterLabels },
+    prestasiMeta: {
+      meta: profilPageConfig.prestasi.meta,
+      featuredIds: profilPageConfig.prestasi.items.map((a) => a.id),
+    },
+    ctaFinal: profilPageConfig.ctaFinal,
+  });
+
+  console.log('==> Seed: PageSection rows (akademik)');
+  await seedPageSections('akademik', {
+    pageHeader: akademikPageConfig.pageHeader,
+    kurikulum: akademikPageConfig.kurikulum,
+    mapelMeta: { meta: akademikPageConfig.mapel.meta },
+    jadwal: akademikPageConfig.jadwal,
+    metode: akademikPageConfig.metode,
+    penilaian: akademikPageConfig.penilaian,
+    kalenderMeta: { meta: akademikPageConfig.kalender.meta, events: akademikPageConfig.kalender.events, downloadLabel: akademikPageConfig.kalender.downloadLabel, downloadHref: akademikPageConfig.kalender.downloadHref },
+    ctaFinal: akademikPageConfig.ctaFinal,
+  });
+
+  console.log('==> Seed: PageSection rows (fasilitas)');
+  await seedPageSections('fasilitas', {
+    pageHeader: fasilitasPageConfig.pageHeader,
+    saranaMeta: { meta: fasilitasPageConfig.sarana.meta, statStrip: fasilitasPageConfig.sarana.statStrip },
+    ekskulMeta: { meta: fasilitasPageConfig.ekskul.meta, statStrip: fasilitasPageConfig.ekskul.statStrip, filterLabels: fasilitasPageConfig.ekskul.filterLabels },
+    kegiatan: fasilitasPageConfig.kegiatan,
+    galeriMeta: {
+      meta: fasilitasPageConfig.galeri.meta,
+      filterLabels: fasilitasPageConfig.galeri.filterLabels,
+      featuredIds: fasilitasPageConfig.galeri.items.map((g) => g.id),
+    },
+    tatib: fasilitasPageConfig.tatib,
+    ctaFinal: fasilitasPageConfig.ctaFinal,
+  });
+
+  console.log('==> Seed: PageSection rows (kontak)');
+  await seedPageSections('kontak', {
+    pageHeader: kontakPageConfig.pageHeader,
+    kontakInfo: kontakPageConfig.kontakInfo,
+    peta: kontakPageConfig.peta,
+    form: kontakPageConfig.form,
+    faqMeta: { meta: kontakPageConfig.faq.meta, searchPlaceholder: kontakPageConfig.faq.searchPlaceholder, filterLabels: kontakPageConfig.faq.filterLabels, noResultsText: kontakPageConfig.faq.noResultsText, ctaText: kontakPageConfig.faq.ctaText, ctaHref: kontakPageConfig.faq.ctaHref },
+    ctaFinal: kontakPageConfig.ctaFinal,
+  });
+
+  // ── Entities ──
+  // Group teachers by category then assign intra-category order. categoryOrder
+  // comes from TEACHER_CATEGORY_ORDER so display follows static (pimpinan first),
+  // not alphabetical.
+  console.log('==> Seed: Teachers');
+  const teachersByCategory = new Map<string, typeof profilPageConfig.guru.teachers>();
+  for (const t of profilPageConfig.guru.teachers) {
+    const list = teachersByCategory.get(t.category) ?? [];
+    list.push(t);
+    teachersByCategory.set(t.category, list);
+  }
+  for (const [cat, list] of teachersByCategory) {
+    const catOrder = TEACHER_CATEGORY_ORDER[cat] ?? 99;
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i]!;
+      const photo = t.photo;
+      const order = i;
+      // Field set differs by photoKind. Compute the full set once so create+update agree.
+      const photoFields =
+        photo.kind === 'url'
+          ? {
+              photoKind: 'url' as const,
+              photoSrc: photo.src, photoAlt: photo.alt,
+              photoFrom: null, photoTo: null, photoEmoji: null,
+            }
+          : {
+              photoKind: 'gradient' as const,
+              photoSrc: null, photoAlt: null,
+              photoFrom: photo.from, photoTo: photo.to, photoEmoji: photo.emoji,
+            };
+      await prisma.teacher.upsert({
+        where: { id: t.id },
+        create: {
+          id: t.id, name: t.name, position: t.position, badge: t.badge, category: t.category,
+          categoryOrder: catOrder, order, ...photoFields,
+        },
+        update: {
+          name: t.name, position: t.position, badge: t.badge, category: t.category,
+          categoryOrder: catOrder, order, ...photoFields,
+        },
+      });
+    }
+  }
+
+  console.log('==> Seed: Achievements (combined home + profil, dedup by id)');
+  // Both home and profil reference achievements by id; merge so single row per
+  // achievement exists. /home picks 5 via featuredIds, /profil picks 6.
+  const allAchievements = new Map<string, (typeof homePageConfig.achievements.items)[number]>();
+  for (const a of homePageConfig.achievements.items) allAchievements.set(a.id, a);
+  for (const a of profilPageConfig.prestasi.items) allAchievements.set(a.id, a);
+  const achievementEntries = Array.from(allAchievements.values());
+  for (let idx = 0; idx < achievementEntries.length; idx++) {
+    const a = achievementEntries[idx]!;
+    const order = idx; // SAME order value passed to both create and update — avoids post-increment trap.
+    await prisma.achievement.upsert({
+      where: { id: a.id },
+      create: {
+        id: a.id, year: a.year, title: a.title, recipient: a.recipient,
+        organizer: a.organizer, level: a.level, icon: a.icon, order,
+      },
+      update: {
+        year: a.year, title: a.title, recipient: a.recipient,
+        organizer: a.organizer, level: a.level, icon: a.icon, order,
+      },
+    });
+  }
+
+  console.log('==> Seed: Extracurriculars');
+  const ekskulByCategory = new Map<string, typeof fasilitasPageConfig.ekskul.items>();
+  for (const e of fasilitasPageConfig.ekskul.items) {
+    const list = ekskulByCategory.get(e.category) ?? [];
+    list.push(e);
+    ekskulByCategory.set(e.category, list);
+  }
+  for (const [cat, list] of ekskulByCategory) {
+    const catOrder = EKSKUL_CATEGORY_ORDER[cat] ?? 99;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      const order = i;
+      const achievement = e.achievement ?? null;
+      await prisma.extracurricular.upsert({
+        where: { id: e.id },
+        create: {
+          id: e.id, name: e.name, category: e.category, categoryOrder: catOrder,
+          description: e.description, pembina: e.pembina, schedule: e.schedule,
+          achievement, icon: e.icon, order,
+        },
+        update: {
+          name: e.name, category: e.category, categoryOrder: catOrder,
+          description: e.description, pembina: e.pembina, schedule: e.schedule,
+          achievement, icon: e.icon, order,
+        },
+      });
+    }
+  }
+
+  console.log('==> Seed: Subjects');
+  for (const tab of akademikPageConfig.mapel.tabs) {
+    const grade = tab.id === 'kelas7' ? 7 : tab.id === 'kelas8' ? 8 : 9;
+    let order = 0;
+    for (const group of tab.groups) {
+      for (const s of group.subjects) {
+        const o = order++; // capture before next iteration so update uses same value
+        await prisma.subject.upsert({
+          where: { id: s.id },
+          create: {
+            id: s.id, grade, groupId: group.id, groupTitle: group.title,
+            name: s.name, icon: s.icon, iconBg: s.iconBg, hours: s.hours, order: o,
+          },
+          update: {
+            grade, groupId: group.id, groupTitle: group.title,
+            name: s.name, icon: s.icon, iconBg: s.iconBg, hours: s.hours, order: o,
+          },
+        });
+      }
+    }
+  }
+
+  console.log('==> Seed: Faqs');
+  for (let i = 0; i < kontakPageConfig.faq.items.length; i++) {
+    const f = kontakPageConfig.faq.items[i]!;
+    const order = i;
+    await prisma.faq.upsert({
+      where: { id: f.id },
+      create: { id: f.id, question: f.question, answer: f.answer, category: f.category, order },
+      update: { question: f.question, answer: f.answer, category: f.category, order },
+    });
+  }
+
+  console.log('==> Seed: GalleryItems (combined home + fasilitas, dedup by id)');
+  const allGallery = new Map<string, (typeof homePageConfig.gallery.items)[number]>();
+  for (const g of homePageConfig.gallery.items) allGallery.set(g.id, g);
+  for (const g of fasilitasPageConfig.galeri.items) allGallery.set(g.id, g);
+  const galleryEntries = Array.from(allGallery.values());
+  for (let idx = 0; idx < galleryEntries.length; idx++) {
+    const g = galleryEntries[idx]!;
+    const order = idx;
+    await prisma.galleryItem.upsert({
+      where: { id: g.id },
+      create: {
+        id: g.id, caption: g.caption, emoji: g.emoji,
+        gradientFrom: g.gradientFrom, gradientTo: g.gradientTo,
+        category: g.category ?? null, span: g.span ?? null, order,
+      },
+      update: {
+        caption: g.caption, emoji: g.emoji,
+        gradientFrom: g.gradientFrom, gradientTo: g.gradientTo,
+        category: g.category ?? null, span: g.span ?? null, order,
+      },
+    });
+  }
+
+  console.log('==> Seed: Facilities');
+  for (let i = 0; i < fasilitasPageConfig.sarana.featured.length; i++) {
+    const f = fasilitasPageConfig.sarana.featured[i]!;
+    const order = i;
+    await prisma.facility.upsert({
+      where: { id: f.id },
+      create: {
+        id: f.id, kind: 'featured', name: f.name, description: f.description,
+        emoji: f.emoji, gradientFrom: f.gradientFrom, gradientTo: f.gradientTo,
+        span: f.span ?? null, icon: null, order,
+      },
+      update: {
+        kind: 'featured', name: f.name, description: f.description,
+        emoji: f.emoji, gradientFrom: f.gradientFrom, gradientTo: f.gradientTo,
+        span: f.span ?? null, icon: null, order,
+      },
+    });
+  }
+  for (let i = 0; i < fasilitasPageConfig.sarana.mini.length; i++) {
+    const m = fasilitasPageConfig.sarana.mini[i]!;
+    const order = i;
+    await prisma.facility.upsert({
+      where: { id: m.id },
+      create: {
+        id: m.id, kind: 'mini', name: m.name, icon: m.icon,
+        description: null, emoji: null, gradientFrom: null, gradientTo: null, span: null,
+        order,
+      },
+      update: {
+        kind: 'mini', name: m.name, icon: m.icon,
+        description: null, emoji: null, gradientFrom: null, gradientTo: null, span: null,
+        order,
+      },
+    });
+  }
+
+  console.log('==> Seed: OrganizationChart (wipe + recreate for stable structure)');
+  // OrganizationMember structure changes irregularly between deployments. Index-based IDs
+  // (lvl0-0, lvl0-1, ...) become orphans if static config rearranges. Wiping + recreating
+  // is simple, fast (few rows), and idempotent. Phase 2 admin UI will eventually replace
+  // this with stable cuid()-generated IDs managed via CRUD UI.
+  await prisma.organizationMember.deleteMany({});
+  let omOrder = 0;
+  for (let levelIdx = 0; levelIdx < profilPageConfig.struktur.chart.levels.length; levelIdx++) {
+    const lvl = profilPageConfig.struktur.chart.levels[levelIdx]!;
+    for (let bIdx = 0; bIdx < lvl.boxes.length; bIdx++) {
+      const box = lvl.boxes[bIdx]!;
+      const id = `${lvl.id}-${bIdx}`;
+      const order = omOrder++;
+      await prisma.organizationMember.create({
+        data: { id, name: box.name, role: box.title, level: levelIdx, order },
+      });
+    }
+  }
+
+  console.log('==> Seed: DocumentSlots (empty placeholders)');
+  for (const slotId of ['kalender-akademik', 'tata-tertib']) {
+    await prisma.documentSlot.upsert({
+      where: { id: slotId },
+      create: { id: slotId, mediaId: null },
+      update: {},
+    });
+  }
+
+  console.log('==> Done');
+}
+
+main()
+  .catch((err) => { console.error(err); process.exit(1); })
+  .finally(() => prisma.$disconnect());
