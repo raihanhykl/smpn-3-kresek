@@ -155,12 +155,13 @@ NEXT_PUBLIC_API_BASE_URL=
 
 ```bash
 cp .env.example .env.local
-echo "AUTH_SECRET=\"$(openssl rand -base64 32)\"" >> .env.local
+SECRET="$(openssl rand -base64 32)"
+# In-place replace AUTH_SECRET line. The empty value from .env.example becomes the real secret.
+# macOS sed requires -i ''; on Linux it's -i. The two-arg form below works on both.
+sed -i.bak "s|^AUTH_SECRET=\"\"|AUTH_SECRET=\"${SECRET}\"|" .env.local && rm -f .env.local.bak
 ```
 
-Manually edit `.env.local` to remove duplicate `AUTH_SECRET=""` line.
-
-Verify: `cat .env.local` shows `AUTH_SECRET="<base64 string>"` exactly once.
+Verify: `grep AUTH_SECRET .env.local` shows `AUTH_SECRET="<base64 string>"` exactly once (not empty).
 
 - [ ] **Step 1.3: Write failing test for env validation**
 
@@ -416,14 +417,17 @@ model AuditLog {
   target    String
   metadata  Json?
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Restrict: audit trail is forensic evidence and must survive user deletion.
+  // Deleting a user with audit rows will fail loudly; the right cleanup path is
+  // to anonymize (set userId to a tombstone user) or archive, never cascade.
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, createdAt])
   @@index([target, createdAt])
 }
 ```
 
-Note: schema for Phase 0 only. Phase 1 will add PageSection, SiteConfig, Navigation, entities.
+Note: schema for Phase 0 only. Phase 1 will add PageSection, SiteConfig, Navigation, entities. The User model's `auditLogs AuditLog[]` back-relation is informational only — deleting a user with audit rows raises a foreign-key violation (intentional safety net).
 
 - [ ] **Step 3.3: Create first migration against test DB**
 
@@ -505,12 +509,19 @@ git commit -m "feat(db): phase 0 schema (User, Session, AuditLog) + initial migr
 
 Create `src/__tests__/lib/db/client.test.ts`:
 ```ts
+/**
+ * @jest-environment node
+ */
+// IMPORTANT: PrismaClient requires Node APIs (process.binding, fs, etc.) and crashes
+// in jsdom. Override the default env (jsdom) per-file with the docblock above.
+
 describe('prisma singleton', () => {
   afterEach(() => {
     jest.resetModules();
   });
 
   it('returns same instance on multiple imports', () => {
+    process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5433/smpn3_test?schema=public';
     let a: unknown, b: unknown;
     jest.isolateModules(() => {
       a = require('@/lib/db/client').prisma;
@@ -576,7 +587,7 @@ git commit -m "feat(db): prisma singleton client (hot-reload safe)"
 
 Create `src/__tests__/lib/auth/password.test.ts`:
 ```ts
-import { hashPassword, verifyPassword } from '@/lib/auth/password';
+import { hashPassword, verifyPassword, BCRYPT_COST } from '@/lib/auth/password';
 
 describe('password', () => {
   it('hashes and verifies roundtrip', async () => {
@@ -600,6 +611,20 @@ describe('password', () => {
     const b = await hashPassword('same');
     expect(a).not.toBe(b);
   });
+
+  // --- spec-locked values ---
+
+  it('uses bcrypt cost 10 (per spec Section 5)', async () => {
+    expect(BCRYPT_COST).toBe(10);
+    const hash = await hashPassword('x');
+    // bcryptjs format: $2a$10$... or $2b$10$...
+    expect(hash).toMatch(/^\$2[aby]\$10\$/);
+  });
+
+  it('verifyPassword does not throw on empty password (timing-attack safety)', async () => {
+    const hash = await hashPassword('real');
+    await expect(verifyPassword('', hash)).resolves.toBe(false);
+  });
 });
 ```
 
@@ -614,12 +639,22 @@ Create `src/lib/auth/password.ts`:
 ```ts
 import bcrypt from 'bcryptjs';
 
-const COST = 10;
+/**
+ * Spec-locked bcrypt work factor (Section 5). Exported for tests and
+ * for the constant-time DUMMY_HASH generator in auth/config.ts.
+ */
+export const BCRYPT_COST = 10;
 
 export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, COST);
+  return bcrypt.hash(plain, BCRYPT_COST);
 }
 
+/**
+ * Returns true on match, false otherwise. CONTRACT: never throws.
+ * Designed to be called even when the user is unknown (callers feed a
+ * structurally-valid dummy hash) to keep timing constant across the
+ * known-vs-unknown user paths.
+ */
 export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
   try {
     return await bcrypt.compare(plain, hash);
@@ -690,6 +725,16 @@ describe('rate limiter (token bucket)', () => {
     jest.useRealTimers();
   });
 
+  it('resets at exact boundary (now === resetAt)', () => {
+    jest.useFakeTimers();
+    const limiter = createRateLimiter({ max: 1, windowMs: 1000 });
+    expect(limiter.check('ip-boundary').allowed).toBe(true);
+    expect(limiter.check('ip-boundary').allowed).toBe(false);
+    jest.advanceTimersByTime(1000); // exactly the boundary
+    expect(limiter.check('ip-boundary').allowed).toBe(true);
+    jest.useRealTimers();
+  });
+
   it('returns retryAfterMs when blocked', () => {
     jest.useFakeTimers();
     const limiter = createRateLimiter({ max: 1, windowMs: 5000 });
@@ -698,6 +743,29 @@ describe('rate limiter (token bucket)', () => {
     expect(result.allowed).toBe(false);
     expect(result.retryAfterMs).toBeGreaterThan(0);
     expect(result.retryAfterMs).toBeLessThanOrEqual(5000);
+    jest.useRealTimers();
+  });
+
+  // --- spec-locked values ---
+
+  it('exported loginRateLimiter uses spec values (max=5, window=15min)', () => {
+    jest.useFakeTimers();
+    jest.resetModules();
+    let loginRateLimiter: { check: (k: string) => { allowed: boolean } };
+    jest.isolateModules(() => {
+      loginRateLimiter = require('@/lib/auth/rate-limit').loginRateLimiter;
+    });
+    const KEY = 'spec-check-ip';
+    for (let i = 0; i < 5; i++) {
+      expect(loginRateLimiter!.check(KEY).allowed).toBe(true);
+    }
+    expect(loginRateLimiter!.check(KEY).allowed).toBe(false);
+    // Verify window: still blocked just before 15min
+    jest.advanceTimersByTime(15 * 60 * 1000 - 1);
+    expect(loginRateLimiter!.check(KEY).allowed).toBe(false);
+    // Released right at 15min
+    jest.advanceTimersByTime(1);
+    expect(loginRateLimiter!.check(KEY).allowed).toBe(true);
     jest.useRealTimers();
   });
 });
@@ -801,6 +869,19 @@ describe('requireRole', () => {
     const session: Session = { user: { id: 'u2', role: 'EDITOR' } };
     expect(requireRole(session, ['ADMIN', 'EDITOR'])).toEqual({ id: 'u2', role: 'EDITOR' });
   });
+
+  it('throws ForbiddenError when role is an unexpected string (defensive)', () => {
+    // Simulate a stale JWT carrying a role no longer in our enum.
+    const session = { user: { id: 'u3', role: 'SUPER_ADMIN' as unknown as 'ADMIN' } };
+    expect(() => requireRole(session as unknown as Session, ['ADMIN'])).toThrow(ForbiddenError);
+  });
+
+  it('does not mutate the input session', () => {
+    const session: Session = { user: { id: 'u4', role: 'ADMIN' } };
+    const snapshot = JSON.parse(JSON.stringify(session));
+    requireRole(session, ['ADMIN']);
+    expect(session).toEqual(snapshot);
+  });
 });
 ```
 
@@ -813,7 +894,10 @@ Expected: FAIL — module not found.
 
 Create `src/lib/auth/require-role.ts`:
 ```ts
-export type Role = 'ADMIN' | 'EDITOR';
+// Re-export Prisma's Role enum as the SINGLE source of truth. Avoids drift between
+// our own string union and the DB-generated enum.
+export { Role } from '@prisma/client';
+import type { Role } from '@prisma/client';
 
 export type AuthSessionUser = { id: string; role: Role };
 
@@ -839,6 +923,8 @@ export function requireRole(session: AuthSession, allowed: Role[]): AuthSessionU
   return session.user;
 }
 ```
+
+**Note**: `Role` is re-exported from `@prisma/client`. Importing the enum runtime value (rather than just the type) requires Prisma client to be generated first — Chunk 1 Task 3 handles this. Tests in Step 7.1 use string literals (`'ADMIN'`, `'EDITOR'`) which match the enum values.
 
 - [ ] **Step 7.4: Run test, expect PASS**
 
@@ -919,6 +1005,27 @@ describe('writeAudit', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.metadata).toBeNull();
   });
+
+  // Documents the contract that auth flow (Chunk 3) relies on:
+  // writeAudit can throw, and callers MUST use .catch(() => {}) to ensure
+  // audit failures never block auth.
+  it('throws on FK violation when userId does not exist (caller must catch)', async () => {
+    await expect(
+      writeAudit({ userId: 'nonexistent-user-id', action: 'x', target: 'y' }),
+    ).rejects.toThrow();
+  });
+
+  // Index sanity: ensure a representative query for the audit "history drawer"
+  // works (Phase 4 use case). If indexes drift, this stays green but slow —
+  // catching that is for production monitoring, not unit tests.
+  it('supports per-user history query (uses [userId, createdAt] index)', async () => {
+    const rows = await prisma.auditLog.findMany({
+      where: { userId: 'audit-test-user' },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+  });
 });
 ```
 
@@ -948,10 +1055,13 @@ module.exports = createJestConfig(config);
 
 Create `jest.integration.setup.ts`:
 ```ts
+// Provide all env required by src/lib/env.ts validation. We intentionally do NOT
+// set SKIP_ENV_VALIDATION here — integration tests should fail fast if env shape
+// drifts from the validator, surfacing config bugs before production does.
 process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5433/smpn3_test?schema=public';
 process.env.AUTH_SECRET ??= 'test-secret-must-be-at-least-thirty-two-chars';
 process.env.AUTH_URL ??= 'http://localhost:3000';
-process.env.SKIP_ENV_VALIDATION = 'true';
+process.env.NEXT_PUBLIC_DATA_SOURCE ??= 'static';
 ```
 
 Update `package.json` `scripts`:
@@ -961,10 +1071,16 @@ Update `package.json` `scripts`:
 
 (replace the earlier line added in Step 0.5).
 
-Also exclude integration tests from default `jest.config.js`:
-Modify the `testMatch` line in `jest.config.js`:
+Also exclude integration tests from default `jest.config.js`. **DO NOT** put a `!` negation inside `testMatch` — Jest's `testMatch` does not support negation. Use `testPathIgnorePatterns` instead:
+
+In `jest.config.js`, the `testMatch` stays as is:
 ```js
-testMatch: ['<rootDir>/src/__tests__/**/*.test.{ts,tsx}', '!<rootDir>/src/__tests__/integration/**'],
+testMatch: ['<rootDir>/src/__tests__/**/*.test.{ts,tsx}'],
+```
+
+And add (or extend) `testPathIgnorePatterns`:
+```js
+testPathIgnorePatterns: ['/node_modules/', '<rootDir>/src/__tests__/integration/'],
 ```
 
 - [ ] **Step 8.3: Run integration test, expect FAIL**
@@ -1021,15 +1137,22 @@ git commit -m "feat(security): audit log writer + integration test setup"
 
 ## Chunk 3: NextAuth integration + login flow
 
-### Task 9: NextAuth v5 config with Credentials provider
+### Task 9: NextAuth v5 config — Edge-safe + Node-only split
 
-**Why:** This is the heart of the auth system. Wires together: DB user lookup → bcrypt verify → JWT session → callbacks that inject role + mustChangePassword into the session.
+**Why:** This is the heart of the auth system. NextAuth v5 must be split into two configs because:
+- **Edge runtime** (middleware) cannot import Prisma (Node-only). It only needs JWT callbacks + session shape + `pages`.
+- **Node runtime** (route handler, server actions) has the full Credentials provider with bcrypt + Prisma user lookup.
+
+This is the documented v5 pattern. Without split, `next build` fails: `The edge runtime does not support Node.js module '@prisma/client'`.
 
 **Files:**
-- Create: `src/lib/auth/config.ts`
-- Create: `src/lib/auth/session.ts`
-- Create: `src/app/api/auth/[...nextauth]/route.ts`
-- Create: `src/types/next-auth.d.ts`
+- Create: `src/lib/auth/config.edge.ts` — Edge-safe (no Prisma/bcrypt). JWT/session callbacks + pages.
+- Create: `src/lib/auth/edge.ts` — Edge entry: `NextAuth(authConfigEdge)` → `auth` for middleware.
+- Create: `src/lib/auth/config.ts` — Full config: extends edge + Credentials provider.
+- Create: `src/lib/auth/handlers.ts` — Re-export `handlers` for the route file.
+- Create: `src/lib/auth/session.ts` — `getSession()` helper.
+- Create: `src/app/api/auth/[...nextauth]/route.ts` — Mount handlers.
+- Create: `src/types/next-auth.d.ts` — Module augmentation for typed session.
 
 - [ ] **Step 9.1: Module augmentation for typed session**
 
@@ -1068,30 +1191,96 @@ declare module 'next-auth/jwt' {
 }
 ```
 
-- [ ] **Step 9.2: NextAuth config**
+- [ ] **Step 9.2a: Edge-safe config (NO Prisma, NO bcrypt imports)**
+
+Create `src/lib/auth/config.edge.ts`:
+```ts
+import type { NextAuthConfig } from 'next-auth';
+
+/**
+ * Edge-safe NextAuth config: ONLY JWT/session callbacks + pages.
+ * No providers with DB/Node imports — those live in config.ts.
+ * Used by middleware (Edge runtime cannot import Prisma).
+ */
+export const authConfigEdge: NextAuthConfig = {
+  session: { strategy: 'jwt', maxAge: 7 * 24 * 60 * 60 }, // 7 days
+  pages: { signIn: '/admin/login' },
+  providers: [], // populated in config.ts (Node side)
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+        token.mustChangePassword = user.mustChangePassword;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      session.user.id = token.id;
+      session.user.role = token.role;
+      session.user.mustChangePassword = token.mustChangePassword;
+      return session;
+    },
+  },
+};
+```
+
+- [ ] **Step 9.2b: Edge entry for middleware**
+
+Create `src/lib/auth/edge.ts`:
+```ts
+import NextAuth from 'next-auth';
+import { authConfigEdge } from './config.edge';
+
+/**
+ * Edge-runtime-compatible NextAuth instance. Used ONLY by src/middleware.ts.
+ * Server components, route handlers, and server actions should import from './config' instead.
+ */
+export const { auth } = NextAuth(authConfigEdge);
+```
+
+- [ ] **Step 9.2c: Full Node-side config (Credentials + Prisma + bcrypt)**
 
 Create `src/lib/auth/config.ts`:
 ```ts
-import NextAuth, { type NextAuthConfig } from 'next-auth';
+import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import { headers as nextHeaders } from 'next/headers';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/client';
-import { verifyPassword } from '@/lib/auth/password';
+import { verifyPassword, hashPassword } from '@/lib/auth/password';
 import { loginRateLimiter } from '@/lib/auth/rate-limit';
 import { writeAudit } from '@/lib/security/audit';
+import { authConfigEdge } from './config.edge';
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
 
-// Dummy bcrypt hash used to keep timing constant when user not found.
-// Generated once by hashing 'dummy' — value here is opaque, only used for constant-time verify.
-const DUMMY_HASH = '$2b$10$CwTycUXWue0Thq9StjUM0uJ8L8L8L8L8L8L8L8L8L8L8L8L8L8L8L';
+/**
+ * Structurally-valid bcrypt hash used as a constant-time placeholder when the
+ * email is unknown. NEVER matches any real password (verifyPassword returns false).
+ * Generated once at module load by hashing a random throwaway string, so the cost
+ * matches our COST constant (10).
+ */
+const DUMMY_HASH = await hashPassword(`__dummy_${Math.random()}_${Date.now()}__`);
 
-export const authConfig: NextAuthConfig = {
-  session: { strategy: 'jwt', maxAge: 7 * 24 * 60 * 60 }, // 7 days
-  pages: { signIn: '/admin/login' },
+async function getClientIp(): Promise<string | null> {
+  try {
+    const h = await nextHeaders();
+    return (
+      h.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      h.get('x-real-ip') ??
+      null
+    );
+  } catch {
+    return null; // outside request scope (rare)
+  }
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfigEdge,
   providers: [
     Credentials({
       name: 'credentials',
@@ -1099,15 +1288,11 @@ export const authConfig: NextAuthConfig = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(rawCredentials, request) {
+      async authorize(rawCredentials) {
         const parsed = credentialsSchema.safeParse(rawCredentials);
         if (!parsed.success) return null;
 
-        // Rate limit by client IP (best-effort — falls back to email if no IP header).
-        const ip =
-          request?.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() ??
-          request?.headers?.get?.('x-real-ip') ??
-          parsed.data.email;
+        const ip = (await getClientIp()) ?? parsed.data.email;
         const rl = loginRateLimiter.check(ip);
         if (!rl.allowed) return null;
 
@@ -1146,26 +1331,10 @@ export const authConfig: NextAuthConfig = {
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.mustChangePassword = user.mustChangePassword;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      session.user.id = token.id;
-      session.user.role = token.role;
-      session.user.mustChangePassword = token.mustChangePassword;
-      return session;
-    },
-  },
-};
-
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+});
 ```
+
+**Note on top-level `await`**: Module-scope `await` is supported in ES2022 modules (our tsconfig target). If your bundler complains, replace with a lazy IIFE: `let dummyHashCache: string | null = null; async function dummyHash() { return (dummyHashCache ??= await hashPassword(...)); }` and call it inside `authorize`.
 
 - [ ] **Step 9.3: Server-side session helper**
 
@@ -1219,10 +1388,11 @@ Expected: no errors.
 - [ ] **Step 9.7: Commit**
 
 ```bash
-git add src/lib/auth/config.ts src/lib/auth/session.ts \
+git add src/lib/auth/config.edge.ts src/lib/auth/edge.ts \
+        src/lib/auth/config.ts src/lib/auth/session.ts \
         src/lib/auth/handlers.ts src/app/api/auth \
         src/types/next-auth.d.ts
-git commit -m "feat(auth): nextauth v5 credentials provider with bcrypt + rate limit"
+git commit -m "feat(auth): nextauth v5 with edge/node split + credentials provider"
 ```
 
 ---
@@ -1352,6 +1522,40 @@ describe('credentials authorize()', () => {
     expect(result).toBeNull();
   });
 });
+
+describe('jwt + session callbacks (mustChangePassword propagation)', () => {
+  it('jwt callback carries mustChangePassword from user into token', async () => {
+    const { authConfigEdge } = await import('@/lib/auth/config.edge');
+    const jwtCb = authConfigEdge.callbacks!.jwt!;
+    const token = await jwtCb({
+      token: {} as never,
+      user: {
+        id: 'u-x',
+        email: 'x@test',
+        name: 'X',
+        role: 'EDITOR',
+        mustChangePassword: true,
+      } as never,
+    } as never);
+    expect(token).toMatchObject({
+      id: 'u-x',
+      role: 'EDITOR',
+      mustChangePassword: true,
+    });
+  });
+
+  it('session callback projects token into session.user', async () => {
+    const { authConfigEdge } = await import('@/lib/auth/config.edge');
+    const sessionCb = authConfigEdge.callbacks!.session!;
+    const session = await sessionCb({
+      session: { user: { email: 'x@test', name: 'X' } } as never,
+      token: { id: 'u-x', role: 'ADMIN', mustChangePassword: false } as never,
+    } as never);
+    expect(session).toMatchObject({
+      user: { id: 'u-x', role: 'ADMIN', mustChangePassword: false },
+    });
+  });
+});
 ```
 
 - [ ] **Step 10.2: Run, expect PASS**
@@ -1373,35 +1577,144 @@ git commit -m "test(auth): integration tests for credentials authorize flow"
 **Why:** Defense-in-depth layer 1. Before any admin page renders, check session exists. Unauthenticated → redirect to `/admin/login` with `returnUrl`.
 
 **Files:**
-- Create: `src/middleware.ts`
+- Create: `src/lib/auth/middleware-policy.ts` — pure decision function (unit-testable)
+- Create: `src/__tests__/lib/auth/middleware-policy.test.ts`
+- Create: `src/middleware.ts` — thin wrapper, imports from edge entry
 
-- [ ] **Step 11.1: Implement middleware**
+- [ ] **Step 11.1a: Write failing test for pure middleware policy**
+
+Create `src/__tests__/lib/auth/middleware-policy.test.ts`:
+```ts
+import { decideMiddlewareAction } from '@/lib/auth/middleware-policy';
+
+const sessionOk = { user: { id: 'u1', role: 'ADMIN' as const, mustChangePassword: false } };
+const sessionForceChange = { user: { id: 'u1', role: 'ADMIN' as const, mustChangePassword: true } };
+
+describe('decideMiddlewareAction', () => {
+  it('lets non-admin paths through', () => {
+    expect(decideMiddlewareAction({ pathname: '/profil', search: '', session: null })).toEqual({
+      type: 'next',
+    });
+  });
+
+  it('lets /admin/login through even when unauthenticated', () => {
+    expect(decideMiddlewareAction({ pathname: '/admin/login', search: '', session: null })).toEqual({
+      type: 'next',
+    });
+  });
+
+  it('redirects unauthenticated /admin/dashboard to login with returnUrl', () => {
+    const result = decideMiddlewareAction({
+      pathname: '/admin/dashboard',
+      search: '?x=1',
+      session: null,
+    });
+    expect(result).toEqual({ type: 'redirect', to: '/admin/login?returnUrl=%2Fadmin%2Fdashboard%3Fx%3D1' });
+  });
+
+  it('redirects authenticated user with mustChangePassword to change-password page', () => {
+    const result = decideMiddlewareAction({
+      pathname: '/admin/dashboard',
+      search: '',
+      session: sessionForceChange,
+    });
+    expect(result).toEqual({ type: 'redirect', to: '/admin/change-password' });
+  });
+
+  it('allows authenticated user with mustChangePassword to reach the change-password page itself', () => {
+    expect(
+      decideMiddlewareAction({
+        pathname: '/admin/change-password',
+        search: '',
+        session: sessionForceChange,
+      }),
+    ).toEqual({ type: 'next' });
+  });
+
+  it('lets authenticated user with no flag through to any admin page', () => {
+    expect(
+      decideMiddlewareAction({ pathname: '/admin/dashboard', search: '', session: sessionOk }),
+    ).toEqual({ type: 'next' });
+  });
+});
+```
+
+- [ ] **Step 11.1b: Run test, expect FAIL**
+
+Run: `npm test -- --testPathPattern='middleware-policy'`
+Expected: FAIL — module not found.
+
+- [ ] **Step 11.1c: Implement pure policy**
+
+Create `src/lib/auth/middleware-policy.ts`:
+```ts
+import type { Role } from '@/lib/auth/require-role';
+
+type MiddlewareSession = {
+  user: { id: string; role: Role; mustChangePassword: boolean };
+} | null;
+
+export type MiddlewareAction =
+  | { type: 'next' }
+  | { type: 'redirect'; to: string };
+
+const PUBLIC_ADMIN_PATHS = new Set(['/admin/login']);
+
+export function decideMiddlewareAction(input: {
+  pathname: string;
+  search: string;
+  session: MiddlewareSession;
+}): MiddlewareAction {
+  const { pathname, search, session } = input;
+
+  if (!pathname.startsWith('/admin')) return { type: 'next' };
+  if (PUBLIC_ADMIN_PATHS.has(pathname)) return { type: 'next' };
+
+  if (!session?.user) {
+    const params = new URLSearchParams({ returnUrl: pathname + search });
+    return { type: 'redirect', to: `/admin/login?${params.toString()}` };
+  }
+
+  if (session.user.mustChangePassword && pathname !== '/admin/change-password') {
+    return { type: 'redirect', to: '/admin/change-password' };
+  }
+
+  return { type: 'next' };
+}
+```
+
+- [ ] **Step 11.1d: Run test, expect PASS**
+
+Run: `npm test -- --testPathPattern='middleware-policy'`
+Expected: 6 tests PASS.
+
+- [ ] **Step 11.2: Implement middleware shell (imports Edge entry, NOT config.ts)**
 
 Create `src/middleware.ts`:
 ```ts
 import { NextResponse, type NextRequest } from 'next/server';
-import { auth } from '@/lib/auth/config';
-
-const PUBLIC_ADMIN_PATHS = ['/admin/login'];
+import { auth } from '@/lib/auth/edge';
+import { decideMiddlewareAction } from '@/lib/auth/middleware-policy';
 
 export default async function middleware(req: NextRequest) {
-  const { pathname, search } = req.nextUrl;
-
-  if (!pathname.startsWith('/admin')) return NextResponse.next();
-  if (PUBLIC_ADMIN_PATHS.includes(pathname)) return NextResponse.next();
-
   const session = await auth();
-  if (!session?.user) {
-    const loginUrl = new URL('/admin/login', req.url);
-    loginUrl.searchParams.set('returnUrl', pathname + search);
-    return NextResponse.redirect(loginUrl);
-  }
+  const action = decideMiddlewareAction({
+    pathname: req.nextUrl.pathname,
+    search: req.nextUrl.search,
+    session: session
+      ? {
+          user: {
+            id: session.user.id,
+            role: session.user.role,
+            mustChangePassword: session.user.mustChangePassword,
+          },
+        }
+      : null,
+  });
 
-  // Force password change flow.
-  if (session.user.mustChangePassword && pathname !== '/admin/change-password') {
-    return NextResponse.redirect(new URL('/admin/change-password', req.url));
+  if (action.type === 'redirect') {
+    return NextResponse.redirect(new URL(action.to, req.url));
   }
-
   return NextResponse.next();
 }
 
@@ -1410,23 +1723,21 @@ export const config = {
 };
 ```
 
-- [ ] **Step 11.2: Typecheck**
+**Important**: Imports `auth` from `@/lib/auth/edge` (Edge-safe), NEVER from `@/lib/auth/config` (which would pull Prisma into the Edge bundle and fail at build time).
+
+- [ ] **Step 11.3: Typecheck**
 
 Run: `npm run typecheck`
 Expected: no errors.
 
-- [ ] **Step 11.3: Build (smoke)**
-
-Run: `npm run build`
-Expected: success. Routes manifest should list `middleware` and `/admin/*` matchers.
-
-If build fails because /admin/dashboard or /admin/change-password don't exist yet, that's fine for now — middleware matcher just checks paths, not page existence. The build is testing that middleware compiles & next.js wires it.
+(Build smoke is deferred to Task 13.6 — when /admin/dashboard and /admin/change-password exist, both required for the build to fully exercise routes referenced by middleware.)
 
 - [ ] **Step 11.4: Commit**
 
 ```bash
-git add src/middleware.ts
-git commit -m "feat(auth): edge middleware with auth guard + force-change-password redirect"
+git add src/middleware.ts src/lib/auth/middleware-policy.ts \
+        src/__tests__/lib/auth/middleware-policy.test.ts
+git commit -m "feat(auth): edge middleware with extracted pure policy (unit-tested)"
 ```
 
 ---
@@ -1600,19 +1911,27 @@ git commit -m "feat(admin): login page + form + server action"
 - Create: `src/app/(admin)/admin/change-password/ChangePasswordForm.tsx`
 - Create: `src/app/(admin)/admin/change-password/actions.ts`
 
-- [ ] **Step 13.1: Dashboard page**
+- [ ] **Step 13.1a: Dashboard logout action**
+
+Create `src/app/(admin)/admin/dashboard/actions.ts`:
+```ts
+'use server';
+
+import { signOut } from '@/lib/auth/config';
+
+export async function logoutAction(): Promise<void> {
+  await signOut({ redirectTo: '/admin/login' });
+}
+```
+
+- [ ] **Step 13.1b: Dashboard page**
 
 Create `src/app/(admin)/admin/dashboard/page.tsx`:
 ```tsx
-import { signOut } from '@/lib/auth/config';
 import { auth } from '@/lib/auth/config';
+import { logoutAction } from './actions';
 
 export const dynamic = 'force-dynamic';
-
-async function logoutAction() {
-  'use server';
-  await signOut({ redirectTo: '/admin/login' });
-}
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -1714,6 +2033,8 @@ export async function changePasswordAction(
   });
 
   // Sign user out so the JWT refreshes with mustChangePassword=false on next login.
+  // signOut throws an internal NEXT_REDIRECT error — code below is unreachable
+  // (kept to satisfy the function's declared return type).
   await signOut({ redirectTo: '/admin/login?passwordChanged=1' });
   return null;
 }
@@ -1806,7 +2127,14 @@ export default function ChangePasswordPage() {
 Run: `npm run typecheck && npm run lint`
 Expected: no errors.
 
-- [ ] **Step 13.6: Commit**
+- [ ] **Step 13.6: Build smoke (verify middleware + admin pages compile together)**
+
+Run: `npm run build`
+Expected: build succeeds. Routes manifest lists `/admin/dashboard`, `/admin/login`, `/admin/change-password`, `middleware`, and `/api/health` (added in Task 14, run this step again after Task 14 or skip until then). If Task 14 isn't done yet, expect a single warning about /api/health being missing — that's fine.
+
+Critical check: build must NOT print `The edge runtime does not support Node.js module '@prisma/client'`. If it does, the Edge/Node split in Task 9 was applied incorrectly — go back and verify `src/middleware.ts` imports from `@/lib/auth/edge` (not `@/lib/auth/config`).
+
+- [ ] **Step 13.7: Commit**
 
 ```bash
 git add src/app/\(admin\)/admin/dashboard src/app/\(admin\)/admin/change-password
@@ -1944,17 +2272,40 @@ Verify: `DATABASE_URL=... npx prisma studio` or quick query — only 1 admin row
 
 - [ ] **Step 15.4: Cleanup seed user (so it doesn't leak into other tests)**
 
+Create `scripts/cleanup-seed.ts`:
+```ts
+import { prisma } from '../src/lib/db/client';
+
+async function main() {
+  const deleted = await prisma.user.deleteMany({
+    where: { email: process.env.SEED_ADMIN_EMAIL ?? 'admin@smpn3kresek.sch.id' },
+  });
+  console.log(`Deleted ${deleted.count} seed admin user(s).`);
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());
+```
+
 Run:
 ```bash
 DATABASE_URL="postgresql://test:test@localhost:5433/smpn3_test?schema=public" \
-  npx tsx -e "import { prisma } from './src/lib/db/client'; await prisma.user.deleteMany({ where: { email: 'admin@smpn3kresek.sch.id' } }); await prisma.\$disconnect();"
+  npx tsx scripts/cleanup-seed.ts
 ```
+
+Expected: `Deleted 1 seed admin user(s).`
+
+Note: this script lives in `scripts/` permanently — it's reusable during dev when re-seeding.
 
 - [ ] **Step 15.5: Commit**
 
 ```bash
-git add scripts/seed-admin.ts
-git commit -m "feat(db): idempotent seed script for first admin user"
+git add scripts/seed-admin.ts scripts/cleanup-seed.ts
+git commit -m "feat(db): idempotent seed + cleanup scripts for admin user"
 ```
 
 ---
@@ -1993,10 +2344,10 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   globalSetup: './playwright/global-setup.ts',
   webServer: {
-    command: 'npm run build && npm run start',
+    command: 'npx prisma generate && npm run build && npm run start',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
     env: {
       DATABASE_URL: process.env.DATABASE_URL ?? 'postgresql://test:test@localhost:5433/smpn3_test?schema=public',
       AUTH_SECRET: 'e2e-secret-must-be-at-least-thirty-two-chars',
@@ -2006,6 +2357,8 @@ export default defineConfig({
   },
 });
 ```
+
+The webServer `command` explicitly runs `prisma generate` first as a safety net (in case the client isn't generated yet in CI). `npm run build` then runs env validation against the env block provided — confirms our env validator stays in sync with deploy reality.
 
 - [ ] **Step 16.3: Global setup — seed test admin**
 
@@ -2024,7 +2377,9 @@ export default async function globalSetup() {
     env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
   });
 
-  await prisma.user.deleteMany({ where: { email: 'e2e@smpn3.test' } });
+  await prisma.user.deleteMany({
+    where: { email: { in: ['e2e@smpn3.test', 'e2e-must-change@smpn3.test'] } },
+  });
   await prisma.user.create({
     data: {
       email: 'e2e@smpn3.test',
@@ -2032,6 +2387,15 @@ export default async function globalSetup() {
       role: 'ADMIN',
       passwordHash: await hashPassword('e2e-password-123'),
       mustChangePassword: false,
+    },
+  });
+  await prisma.user.create({
+    data: {
+      email: 'e2e-must-change@smpn3.test',
+      name: 'E2E Force Change',
+      role: 'EDITOR',
+      passwordHash: await hashPassword('temp-password-123'),
+      mustChangePassword: true,
     },
   });
   await prisma.$disconnect();
@@ -2075,6 +2439,39 @@ test.describe('admin login', () => {
     await expect(page).toHaveURL(/\/admin\/dashboard/);
     await page.getByRole('button', { name: /keluar/i }).click();
     await expect(page).toHaveURL(/\/admin\/login/);
+  });
+
+  test('force-change-password: login → redirected to change-password → change → re-login → dashboard', async ({
+    page,
+  }) => {
+    // 1. Login with the user that has mustChangePassword=true
+    await page.goto('/admin/login');
+    await page.getByLabel('Email').fill('e2e-must-change@smpn3.test');
+    await page.getByLabel('Password').fill('temp-password-123');
+    await page.getByRole('button', { name: /masuk/i }).click();
+
+    // 2. Should be redirected to /admin/change-password
+    await expect(page).toHaveURL(/\/admin\/change-password/);
+    await expect(page.getByRole('heading', { name: /ganti password/i })).toBeVisible();
+
+    // 3. Try to escape — middleware should redirect us back
+    await page.goto('/admin/dashboard');
+    await expect(page).toHaveURL(/\/admin\/change-password/);
+
+    // 4. Submit new password
+    await page.getByLabel('Password saat ini').fill('temp-password-123');
+    await page.getByLabel('Password baru (min 8 karakter)').fill('new-strong-password-456');
+    await page.getByLabel('Konfirmasi password baru').fill('new-strong-password-456');
+    await page.getByRole('button', { name: /ganti password/i }).click();
+
+    // 5. After signOut, we land on login with ?passwordChanged=1
+    await expect(page).toHaveURL(/\/admin\/login\?passwordChanged=1/);
+
+    // 6. Re-login with the NEW password → goes to dashboard (flag cleared)
+    await page.getByLabel('Email').fill('e2e-must-change@smpn3.test');
+    await page.getByLabel('Password').fill('new-strong-password-456');
+    await page.getByRole('button', { name: /masuk/i }).click();
+    await expect(page).toHaveURL(/\/admin\/dashboard/);
   });
 });
 ```
@@ -2212,6 +2609,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npx prisma generate  # explicit, do not rely on postinstall
       - run: npx prisma migrate deploy
       - run: npm run test:int
 
@@ -2239,7 +2637,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
+      - run: npx prisma generate
       - run: npx prisma migrate deploy
       - run: npm run e2e
       - if: failure()
@@ -2292,6 +2695,10 @@ Create `scripts/deploy.sh`:
 #!/usr/bin/env bash
 # Deploy script intended to live on the VPS at /opt/smpn3/deploy.sh
 # Triggered by GitHub Actions via SSH. Atomic: if any step fails, PM2 keeps running the old build.
+#
+# DESTRUCTIVE NOTE: `git reset --hard origin/main` discards any local file changes
+# on the VPS. The VPS is deploy-only; never edit files there directly. If you do,
+# they will be lost on the next deploy.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/opt/smpn3/app}"
@@ -2317,6 +2724,7 @@ npm run build
 
 echo "==> Reload PM2"
 pm2 reload "$PM2_NAME" --update-env
+pm2 save  # persist process list across VPS reboots
 
 echo "==> Done"
 ```
@@ -2328,9 +2736,9 @@ chmod +x scripts/deploy.sh
 
 - [ ] **Step 19.2: Add VPS setup section to README**
 
-Append to `README.md` (after "Deployment" section or as a new "Hostinger VPS deployment" subsection):
+Append to `README.md` (after "Deployment" section or as a new "Hostinger VPS deployment" subsection). Use **4-backtick outer fences** for the outer block so nested triple-backticks render correctly on GitHub:
 
-```markdown
+````markdown
 ### Hostinger VPS deployment
 
 One-time setup on VPS (Ubuntu 22.04+ assumed):
@@ -2360,7 +2768,7 @@ cp .env.example .env.local
 # First deploy
 bash scripts/deploy.sh
 
-# Start with PM2
+# Start with PM2 (NODE_ENV=production is implicit because `next start` defaults to production)
 pm2 start npm --name smpn3 -- start
 pm2 save
 pm2 startup  # follow printed instructions
@@ -2368,11 +2776,9 @@ pm2 startup  # follow printed instructions
 # Seed first admin
 npm run db:seed
 # Note the temporary password printed; share via WhatsApp; user changes on first login.
-
-# Nginx reverse proxy (separate task, basic config below)
 ```
 
-GitHub Actions deploy step (add to `.github/workflows/ci.yml` once SSH key is configured in repo secrets):
+Once SSH access is set up, configure GitHub repo secrets `SSH_HOST`, `SSH_USER`, `SSH_KEY` and add the deploy job to `.github/workflows/ci.yml`:
 
 ```yaml
   deploy:
@@ -2387,7 +2793,9 @@ GitHub Actions deploy step (add to `.github/workflows/ci.yml` once SSH key is co
           key: ${{ secrets.SSH_KEY }}
           script: bash /opt/smpn3/deploy.sh
 ```
-```
+
+**Rollback**: SSH into VPS, `cd /opt/smpn3/app && git reset --hard <previous-good-commit-sha> && bash scripts/deploy.sh`. Migrations are not rolled back automatically — use Prisma migration files to author a reverse migration if schema needs to revert.
+````
 
 - [ ] **Step 19.3: Commit**
 
@@ -2472,22 +2880,25 @@ All of these must be true to call Phase 0 complete:
 
 - [ ] `next.config.mjs` no longer has `output: 'export'`
 - [ ] Postgres reachable at `DATABASE_URL`, migrations applied
-- [ ] `npm test` (unit) green: ≥60 tests (existing 51 + new ~12)
-- [ ] `npm run test:int` (integration) green: 10+ tests against real DB
-- [ ] `npm run e2e` (Playwright) green: 9 tests (4 login + 5 public smoke)
-- [ ] `npm run build` succeeds
+- [ ] `npm test` (unit) green: existing 51 + new ~25 unit tests
+- [ ] `npm run test:int` (integration) green: 12+ tests against real DB
+- [ ] `npm run e2e` (Playwright) green: 10 tests (4 login + 1 force-change-pw + 5 public smoke)
+- [ ] `npm run build` succeeds with NO "Edge runtime does not support" error
 - [ ] `npm run lint` + `npm run typecheck` both zero errors
-- [ ] Login flow works end-to-end: seed → login → force-change-password → dashboard → logout
+- [ ] Login flow works end-to-end (covered by E2E): seed → login → dashboard → logout
+- [ ] Force-change-password flow works end-to-end (covered by E2E): mustChangePassword=true → login → change-password page → submit → re-login → dashboard
 - [ ] Middleware redirects unauthenticated `/admin/*` to login with `returnUrl`
-- [ ] Audit log rows appear on successful login
-- [ ] Rate limiter blocks after 5 failed attempts from same IP
+- [ ] Middleware redirects authenticated user with mustChangePassword to `/admin/change-password`
+- [ ] Audit log rows appear on successful login (verified by integration test)
+- [ ] Rate limiter blocks after 5 failed attempts from same IP (verified by integration test)
 - [ ] `/api/health` returns 200 when DB up, 503 when DB down
 - [ ] Public site `/`, `/profil`, `/akademik`, `/fasilitas`, `/kontak` render identically to pre-Phase-0 (visual smoke passes)
-- [ ] CI workflow (GitHub Actions) green
-- [ ] Deploy script + VPS setup documented in README
+- [ ] CI workflow (GitHub Actions) green: unit + integration + e2e + build jobs all pass
+- [ ] Deploy script + VPS setup documented in README with rollback note
 - [ ] No new `out/` directory produced by build
 - [ ] No `.env` (without `.local`) committed
 - [ ] `prisma/migrations/<timestamp>_phase0_init/` committed
+- [ ] NextAuth config Edge/Node split verified: `src/middleware.ts` imports from `@/lib/auth/edge` (not `@/lib/auth/config`)
 
 ---
 
