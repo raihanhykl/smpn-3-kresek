@@ -21,7 +21,7 @@ export function getContentProvider(): ContentProvider {
   const source = process.env.NEXT_PUBLIC_DATA_SOURCE ?? 'static';
   cached =
     source === 'api'
-      ? new ApiContentProvider(process.env.NEXT_PUBLIC_API_BASE_URL ?? '')
+      ? new ApiContentProvider()
       : new StaticContentProvider();
   return cached;
 }

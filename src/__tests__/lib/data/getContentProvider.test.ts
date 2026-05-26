@@ -6,11 +6,9 @@ import {
 } from '@lib/data';
 
 const ORIGINAL_SOURCE = process.env.NEXT_PUBLIC_DATA_SOURCE;
-const ORIGINAL_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 afterEach(() => {
   process.env.NEXT_PUBLIC_DATA_SOURCE = ORIGINAL_SOURCE;
-  process.env.NEXT_PUBLIC_API_BASE_URL = ORIGINAL_BASE;
   resetContentProviderCache();
 });
 
@@ -23,7 +21,6 @@ describe('getContentProvider factory', () => {
 
   it('returns an ApiContentProvider when NEXT_PUBLIC_DATA_SOURCE=api', () => {
     process.env.NEXT_PUBLIC_DATA_SOURCE = 'api';
-    process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.example.com';
     resetContentProviderCache();
     expect(getContentProvider()).toBeInstanceOf(ApiContentProvider);
   });
@@ -62,15 +59,6 @@ describe('StaticContentProvider', () => {
   });
 });
 
-describe('ApiContentProvider', () => {
-  const provider = new ApiContentProvider('https://api.example.com');
-
-  it('throws "not implemented" on every method', async () => {
-    await expect(provider.getSiteConfig()).rejects.toThrow(/not implemented/);
-    await expect(provider.getHomePage()).rejects.toThrow(/not implemented/);
-    await expect(provider.getProfilePage()).rejects.toThrow(/not implemented/);
-    await expect(provider.getAcademicPage()).rejects.toThrow(/not implemented/);
-    await expect(provider.getFacilitiesPage()).rejects.toThrow(/not implemented/);
-    await expect(provider.getContactPage()).rejects.toThrow(/not implemented/);
-  });
-});
+// ApiContentProvider behavior is covered by the integration test at
+// src/__tests__/integration/data/api-content-provider.test.ts, which runs
+// against a seeded test database. Unit tests here only verify the factory.

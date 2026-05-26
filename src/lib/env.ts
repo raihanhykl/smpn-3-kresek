@@ -9,14 +9,12 @@ export const env = createEnv({
   },
   client: {
     NEXT_PUBLIC_DATA_SOURCE: z.enum(['static', 'api']).default('static'),
-    NEXT_PUBLIC_API_BASE_URL: z.string().default(''),
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
     AUTH_SECRET: process.env.AUTH_SECRET,
     AUTH_URL: process.env.AUTH_URL,
     NEXT_PUBLIC_DATA_SOURCE: process.env.NEXT_PUBLIC_DATA_SOURCE,
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
   },
   skipValidation: process.env.SKIP_ENV_VALIDATION === 'true',
 });
