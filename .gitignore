@@ -38,4 +38,8 @@ next-env.d.ts
 .playwright-mcp/
 .superpowers/
 
+# playwright outputs
+test-results/
+playwright-report/
+
 /src/generated/prisma
