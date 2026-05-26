@@ -2,7 +2,11 @@
 
 Website resmi **SMP Negeri 3 Kresek** (Kecamatan Kresek, Kabupaten Tangerang, Banten) — dibangun sebagai bagian dari project PKM (Pengabdian kepada Masyarakat).
 
-Site ini adalah static-export Next.js dengan content yang **fully config-driven**: non-developer bisa mengedit semua copy, daftar guru, ekstrakurikuler, prestasi, FAQ, dst. hanya dengan menyentuh file di `src/config/`.
+## Status
+
+**Phase 0 (Foundation): ✅ Complete** — server runtime + Postgres + Prisma, NextAuth v5 (Edge/Node split) + bcrypt, login flow, force-password-change flow, audit log, middleware auth guard, health check, idempotent seed, Playwright E2E + Jest integration tests, GitHub Actions CI, Hostinger VPS deploy script.
+
+Public pages tetap render dari config typed di `src/config/` (StaticContentProvider). Phase 1 akan migrate ke Postgres-backed data source. Lihat [docs/superpowers/specs/](./docs/superpowers/specs/) dan [docs/superpowers/plans/](./docs/superpowers/plans/) untuk roadmap lengkap.
 
 ---
 
