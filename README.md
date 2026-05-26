@@ -259,6 +259,65 @@ aws s3 sync out/ s3://your-bucket/ --delete
 1. Build command: `npm run build`.
 2. Build output directory: `out`.
 
+````markdown
+### Hostinger VPS deployment
+
+One-time setup on VPS (Ubuntu 22.04+ assumed):
+
+```bash
+# Install Node 22 via nvm + PM2 + Postgres
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+source ~/.bashrc
+nvm install 22.22.0 && nvm use 22.22.0 && nvm alias default 22.22.0
+npm i -g pm2
+
+# Postgres (Ubuntu)
+sudo apt-get install -y postgresql-16
+sudo -u postgres psql -c "CREATE DATABASE smpn3;"
+sudo -u postgres psql -c "CREATE USER smpn3 WITH ENCRYPTED PASSWORD 'change-me';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE smpn3 TO smpn3;"
+
+# Clone repo
+sudo mkdir -p /opt/smpn3 && sudo chown $USER /opt/smpn3
+git clone <repo> /opt/smpn3/app
+cd /opt/smpn3/app
+
+# Env vars
+cp .env.example .env.local
+# Edit .env.local — set DATABASE_URL, AUTH_SECRET (openssl rand -base64 32), AUTH_URL
+
+# First deploy
+bash scripts/deploy.sh
+
+# Start with PM2 (NODE_ENV=production is implicit because `next start` defaults to production)
+pm2 start npm --name smpn3 -- start
+pm2 save
+pm2 startup  # follow printed instructions
+
+# Seed first admin
+npm run db:seed
+# Note the temporary password printed; share via WhatsApp; user changes on first login.
+```
+
+Once SSH access is set up, configure GitHub repo secrets `SSH_HOST`, `SSH_USER`, `SSH_KEY` and add the deploy job to `.github/workflows/ci.yml`:
+
+```yaml
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build, integration, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: bash /opt/smpn3/deploy.sh
+```
+
+**Rollback**: SSH into VPS, `cd /opt/smpn3/app && git reset --hard <previous-good-commit-sha> && bash scripts/deploy.sh`. Migrations are not rolled back automatically — use Prisma migration files to author a reverse migration if schema needs to revert.
+````
+
 ---
 
 ## Notes
