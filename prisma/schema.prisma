@@ -50,3 +50,205 @@ model AuditLog {
   @@index([userId, createdAt])
   @@index([target, createdAt])
 }
+
+// ─── Phase 1: Page content (JSONB) ───
+
+model PageSection {
+  id         String   @id @default(cuid())
+  pageKey    String   // "home" | "profil" | "akademik" | "fasilitas" | "kontak"
+  sectionKey String   // e.g. "hero" | "stats" | "sambutan" | ...
+  data       Json     // Zod-validated shape (see src/lib/validation/schemas/page-sections/)
+  updatedAt  DateTime @updatedAt
+  updatedBy  String?  // userId; nullable so seed without a user is allowed
+
+  @@unique([pageKey, sectionKey])
+}
+
+model SiteConfig {
+  id        String   @id @default("singleton")
+  data      Json     // SiteConfig shape (see src/lib/validation/schemas/site-config.ts)
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+model Navigation {
+  id        String   @id @default("singleton")
+  items     Json     // NavItem[]
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+// ─── Phase 1: Entity tables ───
+
+model Teacher {
+  id            String   @id @default(cuid())
+  name          String
+  position      String
+  badge         String
+  category      String   // "pimpinan" | "guru" | "tu"
+  // Explicit display order per category. Static config has pimpinan first,
+  // then guru, then tu — alphabetical sort by category would reorder. Seed
+  // sets categoryOrder = 0 for pimpinan, 1 for guru, 2 for tu.
+  categoryOrder Int      @default(0)
+  photoKind     String   // "url" | "gradient"
+  photoSrc      String?
+  photoAlt      String?
+  photoFrom     String?
+  photoTo       String?
+  photoEmoji    String?
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([categoryOrder, order])
+}
+
+model Achievement {
+  id        String   @id @default(cuid())
+  year      Int
+  title     String
+  recipient String
+  organizer String
+  level     String   // "kabupaten" | "provinsi" | "nasional" | "internasional"
+  icon      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([year, order])
+}
+
+model Extracurricular {
+  id            String   @id @default(cuid())
+  name          String
+  category      String   // "wajib" | "olahraga" | "seni" | "akademik" | "keagamaan" | "lainnya"
+  // Explicit display order per category. Static order: wajib → olahraga →
+  // seni → akademik → keagamaan → lainnya. Alphabetical would put akademik
+  // first. Seed sets categoryOrder by enum index.
+  categoryOrder Int      @default(0)
+  description   String
+  pembina       String
+  schedule      String
+  achievement   String?
+  icon          String
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([categoryOrder, order])
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  grade     Int      // 7 | 8 | 9
+  groupId   String   // arbitrary group like "kelompok-a"
+  groupTitle String
+  name      String
+  icon      String
+  iconBg    String
+  hours     String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([grade, order])
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  category  String   // "ppdb" | "akademik" | "administrasi" | "lainnya"
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category, order])
+}
+
+model GalleryItem {
+  id           String   @id @default(cuid())
+  caption      String
+  emoji        String
+  gradientFrom String
+  gradientTo   String
+  category     String?  // optional category tag (e.g. "akademik", "ekskul", "fasilitas")
+  span         String?  // "wide" | "tall" | "normal" — visual hint
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category, order])
+}
+
+model Facility {
+  id           String   @id @default(cuid())
+  kind         String   // "featured" | "mini"
+  name         String
+  description  String?  // only used when kind="featured"
+  emoji        String?  // only used when kind="featured"
+  gradientFrom String?  // only used when kind="featured"
+  gradientTo   String?  // only used when kind="featured"
+  span         String?  // only used when kind="featured" — "wide" | "tall" | "normal"
+  icon         String?  // only used when kind="mini"
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([kind, order])
+}
+
+model OrganizationMember {
+  id        String                @id @default(cuid())
+  name      String
+  role      String                // job title shown in org chart
+  level     Int                   // depth in chart, 0 = top
+  parentId  String?
+  parent    OrganizationMember?   @relation("OrgTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  OrganizationMember[]  @relation("OrgTree")
+  order     Int                   @default(0)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([level, order])
+}
+
+model DocumentSlot {
+  id        String   @id  // "kalender-akademik" | "tata-tertib"
+  mediaId   String?       // references MediaAsset; null = no file uploaded yet
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+// ─── Phase 1: Media skeleton (used in Phase 3) ───
+// Included now so Phase 3 doesn't need its own migration.
+
+model MediaAsset {
+  id          String         @id @default(cuid())
+  kind        String         // "image" | "pdf"
+  url         String
+  publicId    String         @unique
+  hash        String         @unique
+  alt         String?
+  filename    String
+  sizeBytes   Int
+  mimeType    String
+  width       Int?
+  height      Int?
+  uploadedBy  String
+  createdAt   DateTime       @default(now())
+  usages      MediaUsage[]
+}
+
+model MediaUsage {
+  id          String     @id @default(cuid())
+  mediaId     String
+  usedInTable String
+  usedInId    String
+  usedInField String
+  media       MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, usedInTable, usedInId, usedInField])
+  @@index([mediaId])
+  @@index([usedInTable, usedInId])
+}
