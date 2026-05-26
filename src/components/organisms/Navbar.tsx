@@ -84,10 +84,10 @@ export function Navbar({ site, activeRoute, transparentOverHero = false }: Navba
           </ul>
 
           <Link
-            href={site.ppdbCta.href}
+            href={site.kontakCta.href}
             className="hidden whitespace-nowrap rounded-sm bg-secondary px-5 py-2.5 font-heading text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-[#D97706] hover:shadow-md lg:inline-block"
           >
-            {site.ppdbCta.label}
+            {site.kontakCta.label}
           </Link>
 
           <button
@@ -125,11 +125,11 @@ export function Navbar({ site, activeRoute, transparentOverHero = false }: Navba
             </Link>
           ))}
           <Link
-            href={site.ppdbCta.href}
+            href={site.kontakCta.href}
             onClick={() => setOpen(false)}
             className="mt-3 w-full rounded-md bg-secondary py-3 text-center font-heading text-lg font-semibold text-white"
           >
-            {site.ppdbCta.label} →
+            {site.kontakCta.label} →
           </Link>
         </div>
       ) : null}

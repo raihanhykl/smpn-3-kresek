@@ -90,7 +90,7 @@ export interface FooterCredit {
 export interface SiteConfig {
   brand: BrandInfo;
   navigation: NavItem[];
-  ppdbCta: { label: string; href: string };
+  kontakCta: { label: string; href: string };
   contact: ContactInfo;
   social: SocialLink[];
   accreditation: AccreditationInfo;

@@ -16,7 +16,8 @@ test.describe('public site visual baseline', () => {
       await page.waitForLoadState('networkidle');
       await expect(page).toHaveScreenshot(`${path.replace(/\//g, '_') || '_root'}.png`, {
         fullPage: true,
-        maxDiffPixelRatio: 0.01,
+        maxDiffPixelRatio: 0.001,
+        maxDiffPixels: 50,
         animations: 'disabled',
       });
     });

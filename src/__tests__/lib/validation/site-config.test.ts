@@ -24,8 +24,8 @@ describe('siteConfigSchema', () => {
   // This test asserts the rename actually happened in src/config/site.ts.
   // Skipped pre-Task-4, enabled at Task 4. Catches a regression where someone
   // re-adds ppdbCta to site.ts later.
-  it.skip('static siteConfig no longer has ppdbCta (Phase 1 contract)', () => {
-    expect((siteConfig as Record<string, unknown>).ppdbCta).toBeUndefined();
+  it('static siteConfig no longer has ppdbCta (Phase 1 contract)', () => {
+    expect((siteConfig as unknown as Record<string, unknown>).ppdbCta).toBeUndefined();
     expect((siteConfig as unknown as { kontakCta: unknown }).kontakCta).toBeDefined();
   });
 
