@@ -1,14 +1,20 @@
 import { prisma } from '@/lib/db/client';
 import { writeAudit } from '@/lib/security/audit';
 
+const TEST_USER_ID = 'audit-test-user';
+const TEST_USER_EMAIL = 'audit@test.local';
+
 describe('writeAudit', () => {
   beforeAll(async () => {
-    await prisma.auditLog.deleteMany({});
-    await prisma.user.deleteMany({});
+    // Scoped cleanup — do NOT wipe global tables; other integration suites
+    // (e.g. auth-login.test.ts) seed their own fixtures and parallel/serial
+    // execution must not stomp on each other.
+    await prisma.auditLog.deleteMany({ where: { userId: TEST_USER_ID } });
+    await prisma.user.deleteMany({ where: { id: TEST_USER_ID } });
     await prisma.user.create({
       data: {
-        id: 'audit-test-user',
-        email: 'audit@test.local',
+        id: TEST_USER_ID,
+        email: TEST_USER_EMAIL,
         passwordHash: 'x',
         name: 'Audit Test',
         role: 'ADMIN',
@@ -17,8 +23,8 @@ describe('writeAudit', () => {
   });
 
   afterAll(async () => {
-    await prisma.auditLog.deleteMany({});
-    await prisma.user.deleteMany({});
+    await prisma.auditLog.deleteMany({ where: { userId: TEST_USER_ID } });
+    await prisma.user.deleteMany({ where: { id: TEST_USER_ID } });
     await prisma.$disconnect();
   });
 

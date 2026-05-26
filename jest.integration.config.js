@@ -13,6 +13,11 @@ const config = {
   },
   testMatch: ['<rootDir>/src/__tests__/integration/**/*.test.{ts,tsx}'],
   testTimeout: 15000,
+  // Integration suites share one Postgres database and seed/cleanup fixtures
+  // by ID; running them in parallel workers causes race conditions. Serial
+  // execution is the simplest correct answer for Phase 0. If integration tests
+  // become slow enough to matter, switch to per-test transactional rollbacks.
+  maxWorkers: 1,
 };
 
 // next/jest sets transformIgnorePatterns that excludes all of node_modules.
