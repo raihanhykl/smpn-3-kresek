@@ -12,21 +12,21 @@ export default async function globalSetup() {
     env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
   });
 
+  // Wipe ALL teachers before re-seeding so the teacher set is fully deterministic.
+  // The content seed re-creates only the canonical p*/g*/t* teachers (via upsert
+  // from profilPageConfig.guru.teachers); it never deletes unknown rows, so stale
+  // cuid()-id teachers from prior admin-CRUD runs would otherwise persist and shift
+  // /profil page height, breaking the visual baseline. Full deleteMany guarantees a
+  // stable, repeatable set on every E2E run.
+  await prisma.teacher.deleteMany({});
+
   // Seed content tables. Idempotent + required for api-source E2E so the
   // webServer (built with NEXT_PUBLIC_DATA_SOURCE=api) can resolve content
-  // from the database during page rendering.
+  // from the database during page rendering. Re-creates the canonical teacher set
+  // wiped above.
   execSync('npx tsx scripts/seed-content.ts', {
     stdio: 'inherit',
     env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
-  });
-
-  // Clean up teachers created by prior E2E runs (prefix-based).
-  await prisma.teacher.deleteMany({
-    where: { OR: [
-      { name: { startsWith: 'E2E ' } },
-      { name: { startsWith: 'Edit Target' } },
-      { name: { startsWith: 'Delete Target' } },
-    ] },
   });
 
   // Wipe AuditLog rows that reference the e2e users first, otherwise the
