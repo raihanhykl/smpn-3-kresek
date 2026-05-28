@@ -9,6 +9,7 @@ import type { Faq } from '@config/types';
 import { EntityTable } from '@/components/admin/EntityTable';
 import { EntityDrawer } from '@/components/admin/EntityDrawer';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
+import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
 import {
   createFaqAction, updateFaqAction, deleteFaqAction, reorderFaqsAction,
@@ -31,6 +32,7 @@ export function FaqManager({ initialFaqs }: { initialFaqs: Faq[] }) {
   const [editing, setEditing] = useState<Faq | null>(null);
   const [deleting, setDeleting] = useState<Faq | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const { register, handleSubmit, reset, formState: { errors } } =
@@ -64,7 +66,7 @@ export function FaqManager({ initialFaqs }: { initialFaqs: Faq[] }) {
         setDrawerOpen(false);
         router.refresh();
       } else {
-        setFormError(result.error === 'forbidden' ? 'Anda tidak punya izin.' : result.error);
+        setFormError(mapActionError(result.error));
       }
     });
   }
@@ -72,13 +74,14 @@ export function FaqManager({ initialFaqs }: { initialFaqs: Faq[] }) {
   function confirmDelete() {
     if (!deleting) return;
     const id = deleting.id;
+    setDeleteError(null);
     startTransition(async () => {
       const result = await deleteFaqAction(id);
       if (result.ok) {
         setDeleting(null);
         router.refresh();
       } else {
-        setFormError(result.error);
+        setDeleteError(mapActionError(result.error));
       }
     });
   }
@@ -151,7 +154,8 @@ export function FaqManager({ initialFaqs }: { initialFaqs: Faq[] }) {
         open={deleting !== null}
         itemName={deleting?.question ?? ''}
         onConfirm={confirmDelete}
-        onCancel={() => setDeleting(null)}
+        onCancel={() => { setDeleting(null); setDeleteError(null); }}
+        error={deleteError ?? undefined}
       />
     </div>
   );

@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { inputClass } from './form/FormField';
 
 export function DeleteConfirmDialog({
-  open, itemName, onConfirm, onCancel,
+  open, itemName, onConfirm, onCancel, error,
 }: {
   open: boolean;
   itemName: string;
   onConfirm: () => void;
   onCancel: () => void;
+  error?: string | undefined;
 }) {
   const [typed, setTyped] = useState('');
   if (!open) return null;
@@ -31,6 +32,7 @@ export function DeleteConfirmDialog({
           onChange={(e) => setTyped(e.target.value)}
           autoComplete="off"
         />
+        {error ? <p className="mt-2 text-sm text-red-600" role="alert">{error}</p> : null}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"

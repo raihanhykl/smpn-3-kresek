@@ -9,6 +9,7 @@ import type { Achievement } from '@config/types';
 import { EntityTable } from '@/components/admin/EntityTable';
 import { EntityDrawer } from '@/components/admin/EntityDrawer';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
+import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
 import {
   createAchievementAction, updateAchievementAction, deleteAchievementAction, reorderAchievementsAction,
@@ -34,6 +35,7 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
   const [editing, setEditing] = useState<Achievement | null>(null);
   const [deleting, setDeleting] = useState<Achievement | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const { register, handleSubmit, reset, formState: { errors } } =
@@ -73,7 +75,7 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
         setDrawerOpen(false);
         router.refresh();
       } else {
-        setFormError(result.error === 'forbidden' ? 'Anda tidak punya izin.' : result.error);
+        setFormError(mapActionError(result.error));
       }
     });
   }
@@ -81,13 +83,14 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
   function confirmDelete() {
     if (!deleting) return;
     const id = deleting.id;
+    setDeleteError(null);
     startTransition(async () => {
       const result = await deleteAchievementAction(id);
       if (result.ok) {
         setDeleting(null);
         router.refresh();
       } else {
-        setFormError(result.error);
+        setDeleteError(mapActionError(result.error));
       }
     });
   }
@@ -171,7 +174,8 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
         open={deleting !== null}
         itemName={deleting?.title ?? ''}
         onConfirm={confirmDelete}
-        onCancel={() => setDeleting(null)}
+        onCancel={() => { setDeleting(null); setDeleteError(null); }}
+        error={deleteError ?? undefined}
       />
     </div>
   );
