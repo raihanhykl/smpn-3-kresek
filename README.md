@@ -4,11 +4,13 @@ Website resmi **SMP Negeri 3 Kresek** (Kecamatan Kresek, Kabupaten Tangerang, Ba
 
 ## Status
 
+**Phase 2a (Admin CRUD foundation): ✅ Complete** — admin shell (sidebar + topbar), generic CRUD scaffolding (tabel + side-drawer form + delete-confirm + drag-reorder), server actions dengan cache invalidation + audit, dan CRUD penuh untuk **Guru, Prestasi, FAQ** via UI. Perubahan langsung muncul di public site. Foto pakai gradient + emoji picker (upload foto asli di Phase 3). Phase 2b akan menambah entity sisanya (Ekstrakurikuler, Mata Pelajaran, Galeri, Fasilitas, Struktur Organisasi) + editor SiteConfig/Navigation.
+
 **Phase 1 (Data migration): ✅ Complete** — public site now reads all content from Postgres via `ApiContentProvider` (`NEXT_PUBLIC_DATA_SOURCE=api`). Visual regression tests confirm no drift from Phase 0. CTA "Info PPDB" diganti "Kontak". Seed script populates DB dari `src/config/` (idempotent).
 
 **Phase 0 (Foundation): ✅ Complete** — server runtime + Postgres + Prisma, NextAuth v5 (Edge/Node split) + bcrypt, login flow, force-password-change flow, audit log, middleware auth guard, health check, idempotent seed, Playwright E2E + Jest integration tests, GitHub Actions CI, Hostinger VPS deploy script.
 
-Phase 2 selanjutnya akan membangun admin dashboard CRUD UI. Lihat [docs/superpowers/specs/](./docs/superpowers/specs/) dan [docs/superpowers/plans/](./docs/superpowers/plans/) untuk roadmap lengkap.
+Phase 3 selanjutnya: media library + upload foto (Cloudinary). Phase 4: inline editor à la Notion. Lihat [docs/superpowers/specs/](./docs/superpowers/specs/) dan [docs/superpowers/plans/](./docs/superpowers/plans/) untuk roadmap lengkap.
 
 ### Phase 1 deployment notes
 
