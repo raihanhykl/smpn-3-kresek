@@ -87,11 +87,20 @@ describe('withRole', () => {
     expect(result).toEqual({ ok: true, data: { x: 1 } });
   });
 
-  it('surfaces a validation failure thrown inside body as a typed error', async () => {
+  it('surfaces a ZodError as its first issue message (human-readable)', async () => {
+    const { z } = await import('zod');
     const result = await withRole(adminSession, ['ADMIN'], async () => {
-      throw new Error('Nama wajib diisi');
+      z.object({ name: z.string().min(1, 'Nama wajib diisi') }).parse({ name: '' });
+      return { x: 1 };
     });
     expect(result).toEqual({ ok: false, error: 'Nama wajib diisi' });
+  });
+
+  it('generic-izes a non-Zod, non-auth Error to unknown_error (no leak)', async () => {
+    const result = await withRole(adminSession, ['ADMIN'], async () => {
+      throw new Error('Prisma P2025: record not found at /internal/path');
+    });
+    expect(result).toEqual({ ok: false, error: 'unknown_error' });
   });
 
   it('passes through UnauthorizedError/ForbiddenError thrown deeper as their codes', async () => {
@@ -112,6 +121,7 @@ Expected: FAIL — module not found.
 
 Create `src/lib/auth/server-action-guard.ts`:
 ```ts
+import { ZodError } from 'zod';
 import {
   requireRole, UnauthorizedError, ForbiddenError,
   type AuthSession, type Role, type AuthSessionUser,
@@ -126,6 +136,12 @@ export type ActionResult<T = void> =
  * AND any error thrown inside the body into a typed ActionResult so the client
  * form gets a clean error string instead of a 500. The body receives the
  * authenticated user.
+ *
+ * Error mapping:
+ * - auth failures → 'unauthorized' | 'forbidden' (the form maps these to friendly copy)
+ * - ZodError → the first validation issue's message (already human-readable, in Indonesian)
+ * - anything else (e.g. a Prisma error) → 'unknown_error' (we do NOT leak the raw
+ *   message to the client — it goes to server logs via console.error instead)
  */
 export async function withRole<T>(
   session: AuthSession,
@@ -146,7 +162,13 @@ export async function withRole<T>(
   } catch (err) {
     if (err instanceof UnauthorizedError) return { ok: false, error: 'unauthorized' };
     if (err instanceof ForbiddenError) return { ok: false, error: 'forbidden' };
-    return { ok: false, error: err instanceof Error ? err.message : 'unknown_error' };
+    if (err instanceof ZodError) {
+      const first = err.errors[0];
+      return { ok: false, error: first?.message ?? 'Data tidak valid.' };
+    }
+    // Don't leak internal error details (Prisma codes, stack) to the client.
+    console.error('[server-action] unexpected error:', err);
+    return { ok: false, error: 'unknown_error' };
   }
 }
 ```
@@ -169,7 +191,7 @@ git commit -m "feat(admin): server-action role guard + crud deps (rhf, dnd-kit)"
 
 ### Task 2: Admin shell layout (sidebar + topbar)
 
-**Why:** Replace the minimal `(admin)/layout.tsx` passthrough with a proper shell: sidebar nav (Dashboard, Guru, Prestasi, FAQ, ...) + topbar (school name, user name, logout). Re-verify session/role in the layout (defense-in-depth layer 2). Login + change-password pages must NOT get the shell (they have their own full-screen layout).
+**Why:** Replace the minimal `(admin)/layout.tsx` passthrough with a proper shell: sidebar nav (Dashboard, Guru, Prestasi, FAQ, ...) + topbar (school name, user name, logout). Each admin page is a server component that calls `auth()` to get session/role for the shell (middleware already enforces the auth guard at layer 1 — see Phase 0). Login + change-password pages must NOT get the shell (they have their own full-screen layout). Layer-2 role enforcement for mutations lives in the server actions via `withRole` (Chunk 2), so the layout stays a simple passthrough.
 
 **Files:**
 - Create: `src/components/admin/AdminShell.tsx`
@@ -447,15 +469,32 @@ describe('teacher write repository', () => {
     expect(inDb).toBeNull();
   });
 
-  it('reorderTeachers sets order by array index within category', async () => {
+  it('reorderTeachers sets order by index within a single category', async () => {
     const a = await createTeacher({ name: 'A', position: 'p', badge: 'b', category: 'guru', photo: gradientPhoto });
     const b = await createTeacher({ name: 'B', position: 'p', badge: 'b', category: 'guru', photo: gradientPhoto });
     const c = await createTeacher({ name: 'C', position: 'p', badge: 'b', category: 'guru', photo: gradientPhoto });
-    // New order: c, a, b
+    // New order within guru: c, a, b
     await reorderTeachers([c.id, a.id, b.id]);
-    const rows = await prisma.teacher.findMany({ orderBy: { order: 'asc' } });
+    const rows = await prisma.teacher.findMany({ where: { category: 'guru' }, orderBy: { order: 'asc' } });
     expect(rows.map((r) => r.id)).toEqual([c.id, a.id, b.id]);
     expect(rows.map((r) => r.order)).toEqual([0, 1, 2]);
+  });
+
+  it('reorderTeachers numbers order PER-CATEGORY when ids span categories', async () => {
+    // Two categories interleaved in the dragged list. Each category must get its
+    // own 0,1,... sequence — NOT a global index (which would clash at order 0).
+    const p1 = await createTeacher({ name: 'P1', position: 'Kepsek', badge: 'b', category: 'pimpinan', photo: gradientPhoto });
+    const g1 = await createTeacher({ name: 'G1', position: 'Guru', badge: 'b', category: 'guru', photo: gradientPhoto });
+    const g2 = await createTeacher({ name: 'G2', position: 'Guru', badge: 'b', category: 'guru', photo: gradientPhoto });
+    // Dragged order (flat list as shown in table): g2, p1, g1
+    await reorderTeachers([g2.id, p1.id, g1.id]);
+    const guru = await prisma.teacher.findMany({ where: { category: 'guru' }, orderBy: { order: 'asc' } });
+    const pimpinan = await prisma.teacher.findMany({ where: { category: 'pimpinan' }, orderBy: { order: 'asc' } });
+    // guru re-numbered in dragged relative order: g2 (0), g1 (1)
+    expect(guru.map((r) => r.id)).toEqual([g2.id, g1.id]);
+    expect(guru.map((r) => r.order)).toEqual([0, 1]);
+    // pimpinan re-numbered independently starting at 0
+    expect(pimpinan.map((r) => r.order)).toEqual([0]);
   });
 });
 ```
@@ -521,25 +560,46 @@ export async function deleteTeacher(id: string): Promise<void> {
 }
 
 /**
- * Reorder teachers by setting `order` = index in the provided id list.
- * The list should contain ids that belong together (e.g. all of one category,
- * or the full set — caller decides). Runs in a transaction.
+ * Reorder teachers. Teacher display order is PER-CATEGORY (`[categoryOrder, order]`),
+ * so a flat global index would clash across categories (two categories both starting
+ * at order 0). This function takes the full ordered id list as the user dragged it,
+ * groups by each teacher's current category, and assigns `order` = position WITHIN
+ * that category. categoryOrder is left untouched (set on create/update from category).
+ *
+ * The admin table sorts by [categoryOrder, order], so dragging only reorders within
+ * a category's visual block — cross-category drags simply re-number each category's
+ * members in their new relative sequence.
  */
 export async function reorderTeachers(orderedIds: string[]): Promise<void> {
-  await prisma.$transaction(
-    orderedIds.map((id, index) =>
-      prisma.teacher.update({ where: { id }, data: { order: index } }),
-    ),
-  );
+  const rows = await prisma.teacher.findMany({
+    where: { id: { in: orderedIds } },
+    select: { id: true, category: true },
+  });
+  const categoryById = new Map(rows.map((r) => [r.id, r.category]));
+  const perCategoryCounter = new Map<string, number>();
+  const updates = orderedIds
+    .filter((id) => categoryById.has(id))
+    .map((id) => {
+      const cat = categoryById.get(id)!;
+      const next = perCategoryCounter.get(cat) ?? 0;
+      perCategoryCounter.set(cat, next + 1);
+      return prisma.teacher.update({ where: { id }, data: { order: next } });
+    });
+  await prisma.$transaction(updates);
 }
 ```
 
-**Note**: the `photoToColumns` return-type expression is awkward — if TS complains, simplify to an explicit return type:
+**Note**: the `photoToColumns` return-type expression is awkward — use this explicit return type instead:
 ```ts
 function photoToColumns(photo: Teacher['photo']): {
   photoKind: string; photoSrc: string | null; photoAlt: string | null;
   photoFrom: string | null; photoTo: string | null; photoEmoji: string | null;
-} { ... }
+} {
+  if (photo.kind === 'url') {
+    return { photoKind: 'url', photoSrc: photo.src, photoAlt: photo.alt, photoFrom: null, photoTo: null, photoEmoji: null };
+  }
+  return { photoKind: 'gradient', photoSrc: null, photoAlt: null, photoFrom: photo.from, photoTo: photo.to, photoEmoji: photo.emoji };
+}
 ```
 
 - [ ] **Step 3.4: Run, expect PASS**
@@ -581,6 +641,8 @@ export async function deleteAchievement(id: string): Promise<void> {
 }
 
 export async function reorderAchievements(orderedIds: string[]): Promise<void> {
+  // Achievement has a single global `order` (not category-grouped), so global index
+  // is correct here. (Contrast with reorderTeachers which is per-category.)
   await prisma.$transaction(
     orderedIds.map((id, index) =>
       prisma.achievement.update({ where: { id }, data: { order: index } }),
@@ -1383,19 +1445,23 @@ export function EntityTable<Row>({
   // Local order mirror so drag feels instant; server reorder fires onDragEnd.
   const [orderedIds, setOrderedIds] = useState<string[]>(() => rows.map(getId));
 
-  // Keep local order in sync if rows prop changes length/content.
   const rowsById = useMemo(() => {
     const m = new Map<string, Row>();
     for (const r of rows) m.set(getId(r), r);
     return m;
   }, [rows, getId]);
 
-  // Reconcile: if server rows changed, reset local order to match.
+  // Reconcile local order when the server rows change (after a mutation +
+  // router refresh). Uses the "store previous prop" pattern — set state DURING
+  // render (React-supported, no effect, no flash) rather than setState-in-useMemo
+  // (anti-pattern) or useEffect (extra render). React bails out of the re-render
+  // if the value is unchanged.
   const serverIds = rows.map(getId).join(',');
-  useMemo(() => {
+  const [prevServerIds, setPrevServerIds] = useState(serverIds);
+  if (serverIds !== prevServerIds) {
+    setPrevServerIds(serverIds);
     setOrderedIds(rows.map(getId));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serverIds]);
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -1801,7 +1867,7 @@ export default async function TeachersPage() {
 
 - [ ] **Step 7.4: AchievementManager + page**
 
-Create `src/app/(admin)/admin/entities/achievements/AchievementManager.tsx` — mirror TeacherManager but simpler (no photo). Form fields: year (number), title, recipient, organizer, level (select: kabupaten/provinsi/nasional/internasional), icon (emoji text input). Reuse EntityTable + EntityDrawer + DeleteConfirmDialog. Form schema:
+Create `src/app/(admin)/admin/entities/achievements/AchievementManager.tsx` — mirror TeacherManager but simpler. **Achievement has NO photo field, so do NOT include GradientPhotoPicker.** Form fields: year (`<input type="number">`), title, recipient, organizer, level (select: kabupaten/provinsi/nasional/internasional), icon (emoji text input). Reuse EntityTable + EntityDrawer + DeleteConfirmDialog. Form schema:
 ```ts
 const formSchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
@@ -1891,6 +1957,23 @@ git commit -m "feat(admin): entity CRUD pages for Teacher, Achievement, Faq (tab
 
 **Files:**
 - Create: `playwright/tests/admin-teacher-crud.spec.ts`
+
+- [ ] **Step 8.0: Add E2E teacher cleanup to global-setup**
+
+E2E tests create teachers with `E2E Guru`, `Edit Target`, `Delete Target` prefixes that persist across runs. Add a cleanup to `playwright/global-setup.ts` (after the content seed, before/after user fixture seeding) so the test DB doesn't accumulate cruft:
+
+```ts
+// Clean up teachers created by prior E2E runs (prefix-based).
+await prisma.teacher.deleteMany({
+  where: { OR: [
+    { name: { startsWith: 'E2E ' } },
+    { name: { startsWith: 'Edit Target' } },
+    { name: { startsWith: 'Delete Target' } },
+  ] },
+});
+```
+
+Verify: `grep -n "Edit Target" playwright/global-setup.ts` shows a match.
 
 - [ ] **Step 8.1: Write E2E**
 
@@ -1985,7 +2068,7 @@ Expected: prior 15 + new 3 = 18 tests pass.
 - [ ] **Step 8.4: Commit**
 
 ```bash
-git add playwright/tests/admin-teacher-crud.spec.ts
+git add playwright/tests/admin-teacher-crud.spec.ts playwright/global-setup.ts
 git commit -m "test(e2e): admin teacher CRUD full flow (add/edit/delete + public reflect)"
 ```
 
@@ -2044,7 +2127,7 @@ git commit -m "docs(phase-2a): mark admin CRUD foundation complete"
 - [ ] Deps installed: react-hook-form, @hookform/resolvers, @dnd-kit/*
 - [ ] `withRole` server-action guard + tests
 - [ ] Admin shell (sidebar + topbar) + dashboard cards
-- [ ] Write functions (create/update/delete/reorder) for Teacher, Achievement, Faq repos + integration tests
+- [ ] Write functions (create/update/delete/reorder) for Teacher, Achievement, Faq repos + integration tests. **reorderTeachers numbers `order` PER-CATEGORY** (not global index) — tested with cross-category ids.
 - [ ] Server actions for all 3 entities with `revalidateTag` + `writeAudit`, returning typed `ActionResult`
 - [ ] EntityTable (list, search, drag-reorder) + tests
 - [ ] EntityDrawer + DeleteConfirmDialog (type-name-to-confirm) + GradientPhotoPicker + FormField
