@@ -42,3 +42,42 @@ export function getAchievementsByIds(ids: readonly string[]): Promise<Achievemen
   );
   return cached();
 }
+
+export type AchievementInput = Omit<Achievement, 'id'>;
+
+export async function createAchievement(input: AchievementInput): Promise<Achievement> {
+  const max = await prisma.achievement.aggregate({ _max: { order: true } });
+  const order = (max._max.order ?? -1) + 1;
+  const row = await prisma.achievement.create({
+    data: {
+      year: input.year, title: input.title, recipient: input.recipient,
+      organizer: input.organizer, level: input.level, icon: input.icon, order,
+    },
+  });
+  return rowToAchievement(row);
+}
+
+export async function updateAchievement(id: string, input: AchievementInput): Promise<Achievement> {
+  const row = await prisma.achievement.update({
+    where: { id },
+    data: {
+      year: input.year, title: input.title, recipient: input.recipient,
+      organizer: input.organizer, level: input.level, icon: input.icon,
+    },
+  });
+  return rowToAchievement(row);
+}
+
+export async function deleteAchievement(id: string): Promise<void> {
+  await prisma.achievement.delete({ where: { id } });
+}
+
+export async function reorderAchievements(orderedIds: string[]): Promise<void> {
+  // Achievement has a single global `order` (not category-grouped), so global index
+  // is correct here. (Contrast with reorderTeachers which is per-category.)
+  await prisma.$transaction(
+    orderedIds.map((id, index) =>
+      prisma.achievement.update({ where: { id }, data: { order: index } }),
+    ),
+  );
+}
