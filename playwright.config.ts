@@ -27,6 +27,10 @@ export default defineConfig({
       AUTH_SECRET: 'e2e-secret-must-be-at-least-thirty-two-chars',
       AUTH_URL: 'http://localhost:3000',
       NEXT_PUBLIC_DATA_SOURCE: 'api',
+      // E2E runs many logins from a single localhost IP, which all share one
+      // rate-limit bucket (prod default is 5/15min). Raise the ceiling for the
+      // test deployment only — production keeps the secure default.
+      LOGIN_RATE_LIMIT_MAX: '1000',
     },
   },
 });

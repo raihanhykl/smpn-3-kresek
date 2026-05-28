@@ -20,6 +20,15 @@ export default async function globalSetup() {
     env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
   });
 
+  // Clean up teachers created by prior E2E runs (prefix-based).
+  await prisma.teacher.deleteMany({
+    where: { OR: [
+      { name: { startsWith: 'E2E ' } },
+      { name: { startsWith: 'Edit Target' } },
+      { name: { startsWith: 'Delete Target' } },
+    ] },
+  });
+
   // Wipe AuditLog rows that reference the e2e users first, otherwise the
   // FK (AuditLog.userId → User.id) blocks user deletion on re-runs.
   const existing = await prisma.user.findMany({

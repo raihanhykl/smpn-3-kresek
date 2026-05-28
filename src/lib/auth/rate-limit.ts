@@ -48,4 +48,17 @@ export function createRateLimiter(opts: { max: number; windowMs: number }): Rate
 }
 
 // Default exported limiter for login: 5 attempts per 15 minutes per key.
-export const loginRateLimiter = createRateLimiter({ max: 5, windowMs: 15 * 60 * 1000 });
+// The max is overridable via LOGIN_RATE_LIMIT_MAX so the E2E deployment (where
+// every request shares one localhost IP bucket and the suite legitimately logs
+// in many times) can raise the ceiling WITHOUT weakening the production
+// default. Falls back to 5 when unset or non-numeric.
+function loginRateLimitMax(): number {
+  const raw = process.env.LOGIN_RATE_LIMIT_MAX;
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
+}
+
+export const loginRateLimiter = createRateLimiter({
+  max: loginRateLimitMax(),
+  windowMs: 15 * 60 * 1000,
+});
