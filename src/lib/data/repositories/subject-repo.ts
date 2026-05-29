@@ -2,24 +2,48 @@ import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db/client';
 import type { SubjectGroup } from '@config/types';
 import type { SubjectValidated } from '@/lib/validation/schemas/entities/subject';
+import {
+  SUBJECT_GROUP_LABEL, SUBJECT_GROUP_ORDER, type SubjectGroupKey,
+} from '@config/subject-groups';
+
+type HoursByGrade = SubjectValidated['hoursByGrade'];
+
+function rowToAdminSubject(r: {
+  id: string; group: string; name: string; icon: string; iconBg: string; hoursByGrade: unknown;
+}): SubjectValidated {
+  return {
+    id: r.id,
+    group: r.group as SubjectGroupKey,
+    name: r.name,
+    icon: r.icon,
+    iconBg: r.iconBg,
+    hoursByGrade: r.hoursByGrade as HoursByGrade,
+  };
+}
 
 async function loadSubjectGroupsByGrade(grade: number): Promise<SubjectGroup[]> {
-  const rows = await prisma.subject.findMany({
-    where: { grade },
-    orderBy: [{ groupId: 'asc' }, { order: 'asc' }],
-  });
-  const byGroup = new Map<string, SubjectGroup>();
+  const gradeKey = String(grade) as keyof HoursByGrade;
+  const rows = await prisma.subject.findMany({ orderBy: [{ order: 'asc' }] });
+
+  // Keep only subjects taught in this grade, grouped by their group key.
+  const byGroup = new Map<SubjectGroupKey, SubjectGroup>();
   for (const r of rows) {
-    let group = byGroup.get(r.groupId);
+    const hours = r.hoursByGrade as HoursByGrade;
+    const h = hours[gradeKey];
+    if (!h) continue; // not taught in this grade
+    const groupKey = r.group as SubjectGroupKey;
+    let group = byGroup.get(groupKey);
     if (!group) {
-      group = { id: r.groupId, title: r.groupTitle, subjects: [] };
-      byGroup.set(r.groupId, group);
+      group = { id: groupKey, title: SUBJECT_GROUP_LABEL[groupKey], subjects: [] };
+      byGroup.set(groupKey, group);
     }
-    group.subjects.push({
-      id: r.id, name: r.name, icon: r.icon, iconBg: r.iconBg, hours: r.hours,
-    });
+    group.subjects.push({ id: r.id, name: r.name, icon: r.icon, iconBg: r.iconBg, hours: h });
   }
-  return Array.from(byGroup.values());
+
+  // Stable group order (wajib before pengembangan).
+  return Array.from(byGroup.values()).sort(
+    (a, b) => SUBJECT_GROUP_ORDER[a.id as SubjectGroupKey] - SUBJECT_GROUP_ORDER[b.id as SubjectGroupKey],
+  );
 }
 
 export function getSubjectGroupsByGrade(grade: number): Promise<SubjectGroup[]> {
@@ -31,23 +55,13 @@ export function getSubjectGroupsByGrade(grade: number): Promise<SubjectGroup[]> 
   return cached();
 }
 
-// Admin-facing flat row (one row per subject, not grouped). The public page
-// re-groups via getSubjectGroupsByGrade.
+// Admin-facing flat row (one row per subject). The public page derives per-grade
+// views via getSubjectGroupsByGrade.
 export type AdminSubject = SubjectValidated;
 export type SubjectInput = Omit<SubjectValidated, 'id'>;
 
-function rowToAdminSubject(r: {
-  id: string; grade: number; groupId: string; groupTitle: string;
-  name: string; icon: string; iconBg: string; hours: string;
-}): AdminSubject {
-  return {
-    id: r.id, grade: r.grade as AdminSubject['grade'], groupId: r.groupId, groupTitle: r.groupTitle,
-    name: r.name, icon: r.icon, iconBg: r.iconBg, hours: r.hours,
-  };
-}
-
 async function loadAllSubjects(): Promise<AdminSubject[]> {
-  const rows = await prisma.subject.findMany({ orderBy: [{ grade: 'asc' }, { order: 'asc' }] });
+  const rows = await prisma.subject.findMany({ orderBy: [{ order: 'asc' }] });
   return rows.map(rowToAdminSubject);
 }
 
@@ -57,13 +71,13 @@ export const getAllSubjects = unstable_cache(
 
 function inputToColumns(input: SubjectInput) {
   return {
-    grade: input.grade, groupId: input.groupId, groupTitle: input.groupTitle,
-    name: input.name, icon: input.icon, iconBg: input.iconBg, hours: input.hours,
+    group: input.group, name: input.name, icon: input.icon,
+    iconBg: input.iconBg, hoursByGrade: input.hoursByGrade,
   };
 }
 
 export async function createSubject(input: SubjectInput): Promise<AdminSubject> {
-  const max = await prisma.subject.aggregate({ where: { grade: input.grade }, _max: { order: true } });
+  const max = await prisma.subject.aggregate({ _max: { order: true } });
   const order = (max._max.order ?? -1) + 1;
   const row = await prisma.subject.create({ data: { ...inputToColumns(input), order } });
   return rowToAdminSubject(row);
@@ -78,24 +92,10 @@ export async function deleteSubject(id: string): Promise<void> {
   await prisma.subject.delete({ where: { id } });
 }
 
-/**
- * Reorder per-grade (display order is `[grade, order]`), so each grade gets its
- * own contiguous index. Same per-group approach as reorderTeachers.
- */
 export async function reorderSubjects(orderedIds: string[]): Promise<void> {
-  const rows = await prisma.subject.findMany({
-    where: { id: { in: orderedIds } },
-    select: { id: true, grade: true },
-  });
-  const gradeById = new Map(rows.map((r) => [r.id, r.grade]));
-  const perGradeCounter = new Map<number, number>();
-  const updates = orderedIds
-    .filter((id) => gradeById.has(id))
-    .map((id) => {
-      const grade = gradeById.get(id)!;
-      const next = perGradeCounter.get(grade) ?? 0;
-      perGradeCounter.set(grade, next + 1);
-      return prisma.subject.update({ where: { id }, data: { order: next } });
-    });
-  await prisma.$transaction(updates);
+  await prisma.$transaction(
+    orderedIds.map((id, index) =>
+      prisma.subject.update({ where: { id }, data: { order: index } }),
+    ),
+  );
 }

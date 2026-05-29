@@ -140,18 +140,19 @@ model Extracurricular {
 
 model Subject {
   id        String   @id @default(cuid())
-  grade     Int      // 7 | 8 | 9
-  groupId   String   // arbitrary group like "kelompok-a"
-  groupTitle String
-  name      String
-  icon      String
-  iconBg    String
-  hours     String
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // One row per subject (no per-grade duplication). Which grades teach it, and
+  // the JP for each, live together in hoursByGrade, e.g. {"7":"5 JP","9":"6 JP"}.
+  // A grade key present = taught in that grade.
+  group        String   // SubjectGroupKey: "wajib" | "pengembangan"
+  name         String
+  icon         String
+  iconBg       String
+  hoursByGrade Json     // Record<"7"|"8"|"9", string>
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  @@index([grade, order])
+  @@index([order])
 }
 
 model Faq {

@@ -38,17 +38,23 @@ describe('entity Zod schemas', () => {
     expect(extracurricularSchema.safeParse({ ...base, achievement: 'Juara 1' }).success).toBe(true);
   });
 
-  it('subjectSchema accepts kelas7-9', () => {
+  it('subjectSchema accepts a subject taught in multiple grades', () => {
     expect(subjectSchema.safeParse({
-      id: 's1', grade: 7, groupId: 'kelompok-a', groupTitle: 'Kelompok A',
-      name: 'Matematika', icon: '📐', iconBg: '#DBEAFE', hours: '5 JP',
+      id: 's1', group: 'wajib', name: 'Matematika', icon: '📐', iconBg: '#DBEAFE',
+      hoursByGrade: { '7': '5 JP', '8': '5 JP', '9': '6 JP' },
     }).success).toBe(true);
   });
 
-  it('subjectSchema rejects grade outside 7-9', () => {
+  it('subjectSchema rejects hoursByGrade with no grades', () => {
     expect(subjectSchema.safeParse({
-      id: 's1', grade: 6, groupId: 'x', groupTitle: 'x',
-      name: 'x', icon: 'x', iconBg: 'x', hours: 'x',
+      id: 's1', group: 'wajib', name: 'x', icon: 'x', iconBg: 'x', hoursByGrade: {},
+    }).success).toBe(false);
+  });
+
+  it('subjectSchema rejects an unknown grade key', () => {
+    expect(subjectSchema.safeParse({
+      id: 's1', group: 'wajib', name: 'x', icon: 'x', iconBg: 'x',
+      hoursByGrade: { '6': '5 JP' },
     }).success).toBe(false);
   });
 

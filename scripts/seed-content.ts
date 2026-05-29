@@ -224,26 +224,42 @@ async function main() {
     }
   }
 
-  console.log('==> Seed: Subjects');
+  console.log('==> Seed: Subjects (dedup across grades into hoursByGrade)');
+  // The static config lists subjects per-grade; merge them so each subject is a
+  // single row whose hoursByGrade records which grades teach it (+ JP each).
+  // Identity = subject name. Group A (wajib) vs B (pengembangan) derived from the
+  // group id suffix (k{7,8,9}-a → wajib, -b → pengembangan).
+  type SeedSubject = {
+    group: 'wajib' | 'pengembangan';
+    name: string; icon: string; iconBg: string;
+    hoursByGrade: Record<string, string>;
+    order: number;
+  };
+  const merged = new Map<string, SeedSubject>();
+  let nextOrder = 0;
   for (const tab of akademikPageConfig.mapel.tabs) {
-    const grade = tab.id === 'kelas7' ? 7 : tab.id === 'kelas8' ? 8 : 9;
-    let order = 0;
+    const grade = tab.id === 'kelas7' ? '7' : tab.id === 'kelas8' ? '8' : '9';
     for (const group of tab.groups) {
+      const groupKey = group.id.endsWith('-a') ? 'wajib' : 'pengembangan';
       for (const s of group.subjects) {
-        const o = order++; // capture before next iteration so update uses same value
-        await prisma.subject.upsert({
-          where: { id: s.id },
-          create: {
-            id: s.id, grade, groupId: group.id, groupTitle: group.title,
-            name: s.name, icon: s.icon, iconBg: s.iconBg, hours: s.hours, order: o,
-          },
-          update: {
-            grade, groupId: group.id, groupTitle: group.title,
-            name: s.name, icon: s.icon, iconBg: s.iconBg, hours: s.hours, order: o,
-          },
-        });
+        const key = s.name;
+        let entry = merged.get(key);
+        if (!entry) {
+          entry = { group: groupKey, name: s.name, icon: s.icon, iconBg: s.iconBg, hoursByGrade: {}, order: nextOrder++ };
+          merged.set(key, entry);
+        }
+        entry.hoursByGrade[grade] = s.hours;
       }
     }
+  }
+  await prisma.subject.deleteMany({});
+  for (const s of merged.values()) {
+    await prisma.subject.create({
+      data: {
+        group: s.group, name: s.name, icon: s.icon, iconBg: s.iconBg,
+        hoursByGrade: s.hoursByGrade, order: s.order,
+      },
+    });
   }
 
   console.log('==> Seed: Faqs');

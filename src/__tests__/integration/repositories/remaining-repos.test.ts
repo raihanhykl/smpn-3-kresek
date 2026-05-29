@@ -17,12 +17,11 @@ describe('remaining entity repositories', () => {
 
     await prisma.subject.createMany({
       data: [
-        { id: 's1', grade: 7, groupId: 'a', groupTitle: 'Kelompok A',
-          name: 'Matematika', icon: '📐', iconBg: '#fff', hours: '5', order: 0 },
-        { id: 's2', grade: 7, groupId: 'a', groupTitle: 'Kelompok A',
-          name: 'IPA', icon: '🔬', iconBg: '#fff', hours: '5', order: 1 },
-        { id: 's3', grade: 8, groupId: 'a', groupTitle: 'Kelompok A',
-          name: 'Matematika', icon: '📐', iconBg: '#fff', hours: '5', order: 0 },
+        // Matematika taught in 7+8, IPA only in 7 — deduped into single rows.
+        { id: 's1', group: 'wajib', name: 'Matematika', icon: '📐', iconBg: '#fff',
+          hoursByGrade: { '7': '5 JP', '8': '5 JP' }, order: 0 },
+        { id: 's2', group: 'wajib', name: 'IPA', icon: '🔬', iconBg: '#fff',
+          hoursByGrade: { '7': '5 JP' }, order: 1 },
       ],
     });
     await prisma.faq.create({
@@ -57,12 +56,14 @@ describe('remaining entity repositories', () => {
     await prisma.$disconnect();
   });
 
-  it('getSubjectGroupsByGrade returns subjects grouped by grade → groupId', async () => {
-    const groups = await getSubjectGroupsByGrade(7);
-    expect(groups).toHaveLength(1);
-    expect(groups[0]?.id).toBe('a');
-    expect(groups[0]?.subjects).toHaveLength(2);
-    expect(groups[0]?.subjects[0]?.name).toBe('Matematika');
+  it('getSubjectGroupsByGrade surfaces deduped rows for the requested grade', async () => {
+    const g7 = await getSubjectGroupsByGrade(7);
+    expect(g7).toHaveLength(1);
+    expect(g7[0]?.id).toBe('wajib');
+    expect(g7[0]?.subjects.map((s) => s.name).sort()).toEqual(['IPA', 'Matematika']);
+    // Grade 8: only Matematika (IPA not taught there) — same row, no duplication.
+    const g8 = await getSubjectGroupsByGrade(8);
+    expect(g8[0]?.subjects.map((s) => s.name)).toEqual(['Matematika']);
   });
 
   it('getFaqs returns array', async () => {
