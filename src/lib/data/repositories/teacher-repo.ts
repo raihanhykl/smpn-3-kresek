@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db/client';
 import type { Teacher } from '@config/types';
+import { TEACHER_CATEGORY_ORDER } from '@config/category-order';
 
 function rowToTeacher(row: {
   id: string; name: string; position: string; badge: string; category: string;
@@ -37,11 +38,6 @@ async function loadTeachers(): Promise<Teacher[]> {
 }
 
 export const getTeachers = unstable_cache(loadTeachers, ['teachers'], { tags: ['teachers'] });
-
-// Category → explicit display order. Mirror of seed-content's TEACHER_CATEGORY_ORDER.
-const TEACHER_CATEGORY_ORDER: Record<Teacher['category'], number> = {
-  pimpinan: 0, guru: 1, tu: 2,
-};
 
 export type TeacherInput = Omit<Teacher, 'id'>;
 

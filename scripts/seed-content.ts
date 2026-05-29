@@ -9,13 +9,7 @@ import { fasilitasPageConfig } from '../src/config/pages/fasilitas';
 import { kontakPageConfig } from '../src/config/pages/kontak';
 import { siteConfigSchema } from '../src/lib/validation/schemas/site-config';
 import { navigationSchema } from '../src/lib/validation/schemas/navigation';
-
-// Maps TeacherCategory → display order (pimpinan first).
-const TEACHER_CATEGORY_ORDER: Record<string, number> = { pimpinan: 0, guru: 1, tu: 2 };
-// Maps EkskulCategory → display order (matches static config sequence).
-const EKSKUL_CATEGORY_ORDER: Record<string, number> = {
-  wajib: 0, olahraga: 1, seni: 2, akademik: 3, keagamaan: 4, lainnya: 5,
-};
+import { TEACHER_CATEGORY_ORDER, EKSKUL_CATEGORY_ORDER } from '../src/config/category-order';
 
 // Helper: dump every section of a page into PageSection rows.
 async function seedPageSections(pageKey: string, sections: Record<string, unknown>) {
@@ -146,7 +140,7 @@ async function main() {
     teachersByCategory.set(t.category, list);
   }
   for (const [cat, list] of teachersByCategory) {
-    const catOrder = TEACHER_CATEGORY_ORDER[cat] ?? 99;
+    const catOrder = TEACHER_CATEGORY_ORDER[cat as keyof typeof TEACHER_CATEGORY_ORDER] ?? 99;
     for (let i = 0; i < list.length; i++) {
       const t = list[i]!;
       const photo = t.photo;
@@ -209,7 +203,7 @@ async function main() {
     ekskulByCategory.set(e.category, list);
   }
   for (const [cat, list] of ekskulByCategory) {
-    const catOrder = EKSKUL_CATEGORY_ORDER[cat] ?? 99;
+    const catOrder = EKSKUL_CATEGORY_ORDER[cat as keyof typeof EKSKUL_CATEGORY_ORDER] ?? 99;
     for (let i = 0; i < list.length; i++) {
       const e = list[i]!;
       const order = i;
