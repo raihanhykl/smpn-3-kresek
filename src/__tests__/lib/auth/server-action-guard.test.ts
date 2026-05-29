@@ -44,6 +44,14 @@ describe('withRole', () => {
     expect(result).toEqual({ ok: false, error: 'unknown_error' });
   });
 
+  it('maps a Prisma P2025 (record not found) to the not_found code', async () => {
+    const result = await withRole(adminSession, ['ADMIN'], async () => {
+      // Shape mirrors PrismaClientKnownRequestError: an object with a `code`.
+      throw Object.assign(new Error('record not found'), { code: 'P2025' });
+    });
+    expect(result).toEqual({ ok: false, error: 'not_found' });
+  });
+
   it('passes through UnauthorizedError/ForbiddenError thrown deeper as their codes', async () => {
     const r1 = await withRole(adminSession, ['ADMIN'], async () => { throw new UnauthorizedError(); });
     expect(r1).toEqual({ ok: false, error: 'unauthorized' });

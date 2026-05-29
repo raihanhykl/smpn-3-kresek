@@ -17,9 +17,15 @@ export type ActionResult<T = void> =
  * Error mapping:
  * - auth failures → 'unauthorized' | 'forbidden' (the form maps these to friendly copy)
  * - ZodError → the first validation issue's message (already human-readable, in Indonesian)
- * - anything else (e.g. a Prisma error) → 'unknown_error' (we do NOT leak the raw
- *   message to the client — it goes to server logs via console.error instead)
+ * - Prisma "record not found" (P2025) → 'not_found' (the row was deleted/changed
+ *   underneath the form, e.g. stale page after a reseed — tell the user to reload)
+ * - anything else (e.g. another Prisma error) → 'unknown_error' (we do NOT leak the
+ *   raw message to the client — it goes to server logs via console.error instead)
  */
+
+function isPrismaNotFound(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'P2025';
+}
 export async function withRole<T>(
   session: AuthSession,
   allowed: Role[],
@@ -43,6 +49,7 @@ export async function withRole<T>(
       const first = err.errors[0];
       return { ok: false, error: first?.message ?? 'Data tidak valid.' };
     }
+    if (isPrismaNotFound(err)) return { ok: false, error: 'not_found' };
     // Don't leak internal error details (Prisma codes, stack) to the client.
     console.error('[server-action] unexpected error:', err);
     return { ok: false, error: 'unknown_error' };
