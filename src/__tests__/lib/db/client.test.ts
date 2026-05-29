@@ -8,7 +8,12 @@
 // unset, so the ??= below provides a default for test environments that don't
 // pre-populate it. In CI the real env wins.
 
-const TEST_DB_URL = 'postgresql://test:test@localhost:5433/smpn3_test?schema=public';
+// This suite never opens a real connection — it only asserts singleton identity —
+// so any syntactically valid URL satisfies the PrismaClient constructor. No real
+// credentials here on purpose.
+const TEST_DB_URL =
+  process.env.TEST_DATABASE_URL ??
+  'postgresql://user:pass@localhost:5432/placeholder?schema=public';
 
 describe('prisma singleton', () => {
   const ORIGINAL_NODE_ENV = process.env.NODE_ENV;

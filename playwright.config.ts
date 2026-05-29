@@ -1,4 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
+import { config as loadEnv } from 'dotenv';
+
+// Playwright does not auto-load .env.local; pull TEST_DATABASE_URL (test DB creds) from it.
+loadEnv({ path: '.env.local' });
+
+const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
+if (!TEST_DATABASE_URL && !process.env.CI) {
+  throw new Error('TEST_DATABASE_URL is not set — add it to .env.local (see .env.example).');
+}
 
 export default defineConfig({
   testDir: './playwright/tests',
@@ -21,9 +30,10 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
     env: {
-      DATABASE_URL:
-        process.env.DATABASE_URL ??
-        'postgresql://test:test@localhost:5433/smpn3_test?schema=public',
+      // CI sets DATABASE_URL to its own test DB; locally always use TEST_DATABASE_URL
+      // (loadEnv above may have put the DEV url into process.env.DATABASE_URL, which
+      // would point the server at dev data and break login/visual fixtures).
+      DATABASE_URL: process.env.CI ? process.env.DATABASE_URL! : TEST_DATABASE_URL!,
       AUTH_SECRET: 'e2e-secret-must-be-at-least-thirty-two-chars',
       AUTH_URL: 'http://localhost:3000',
       NEXT_PUBLIC_DATA_SOURCE: 'api',

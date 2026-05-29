@@ -6,7 +6,7 @@ describe('ApiContentProvider (full)', () => {
   beforeAll(() => {
     execSync('npx tsx scripts/seed-content.ts', {
       stdio: 'pipe', shell: '/bin/bash',
-      env: { ...process.env, DATABASE_URL: 'postgresql://test:test@localhost:5433/smpn3_test?schema=public' },
+      env: process.env,
     });
   }, 60_000);
 

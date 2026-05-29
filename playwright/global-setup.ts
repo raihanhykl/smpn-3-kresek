@@ -1,9 +1,20 @@
+import { config as loadEnv } from 'dotenv';
 import { prisma } from '../src/lib/db/client';
 import { hashPassword } from '../src/lib/auth/password';
 
 export default async function globalSetup() {
-  process.env.DATABASE_URL ??=
-    'postgresql://test:test@localhost:5433/smpn3_test?schema=public';
+  // Playwright does not auto-load .env.local, so pull TEST_DATABASE_URL from it.
+  loadEnv({ path: '.env.local' });
+
+  // Force the dedicated test DB. Locally this comes from TEST_DATABASE_URL
+  // (.env.local, gitignored); a plain `??=` could leave the DEV url in place and
+  // let E2E seed/wipe real dev data. CI provides DATABASE_URL via env, which we honor.
+  process.env.DATABASE_URL = process.env.CI
+    ? process.env.DATABASE_URL
+    : process.env.TEST_DATABASE_URL;
+  if (!process.env.DATABASE_URL) {
+    throw new Error('TEST_DATABASE_URL is not set — add it to .env.local (see .env.example).');
+  }
 
   // Apply latest migrations against the test DB before tests run.
   const { execSync } = await import('node:child_process');

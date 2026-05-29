@@ -25,8 +25,7 @@ describe('seed-content script', () => {
   it('populates all content tables idempotently', async () => {
     // Run twice
     const cmd = 'npx tsx scripts/seed-content.ts';
-    const env = { ...process.env, DATABASE_URL: 'postgresql://test:test@localhost:5433/smpn3_test?schema=public' };
-    execSync(cmd, { stdio: 'pipe', env, shell: '/bin/bash' });
+    execSync(cmd, { stdio: 'pipe', env: process.env, shell: '/bin/bash' });
     const firstCounts = {
       site: await prisma.siteConfig.count(),
       nav: await prisma.navigation.count(),
@@ -35,7 +34,7 @@ describe('seed-content script', () => {
       faqs: await prisma.faq.count(),
     };
 
-    execSync(cmd, { stdio: 'pipe', env, shell: '/bin/bash' });
+    execSync(cmd, { stdio: 'pipe', env: process.env, shell: '/bin/bash' });
     const secondCounts = {
       site: await prisma.siteConfig.count(),
       nav: await prisma.navigation.count(),
