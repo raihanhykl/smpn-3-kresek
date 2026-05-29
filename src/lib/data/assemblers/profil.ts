@@ -1,7 +1,7 @@
 // See header note in assemblers/home.ts about Phase 1 type-cast safety.
 import { getPageSections } from '../repositories/page-section-repo';
 import { getTeachers } from '../repositories/teacher-repo';
-import { getAchievementsByIds } from '../repositories/achievement-repo';
+import { getAllAchievements } from '../repositories/achievement-repo';
 import { getOrganizationChart } from '../repositories/organization-repo';
 import type {
   ProfilePageConfig, PageHeaderConfig, VisiMisiConfig,
@@ -11,7 +11,7 @@ import type {
 type SejarahSection = ProfilePageConfig['sejarah'];
 type StrukturMetaSection = { meta: SectionMeta; studentNote: string };
 type GuruMetaSection = { meta: SectionMeta; filterLabels: ProfilePageConfig['guru']['filterLabels'] };
-type PrestasiMetaSection = { meta: SectionMeta; featuredIds: string[] };
+type PrestasiMetaSection = { meta: SectionMeta };
 
 export async function assembleProfile(): Promise<ProfilePageConfig> {
   const sections = await getPageSections('profil');
@@ -26,10 +26,9 @@ export async function assembleProfile(): Promise<ProfilePageConfig> {
   const prestasiMeta = sections.prestasiMeta as PrestasiMetaSection;
   const ctaFinal = sections.ctaFinal as CtaFinal;
 
-  // Fetch entities only after we have the IDs needed.
   const [teachers, achievements, chartLevels] = await Promise.all([
     getTeachers(),
-    getAchievementsByIds(prestasiMeta.featuredIds),
+    getAllAchievements(),
     getOrganizationChart(),
   ]);
 

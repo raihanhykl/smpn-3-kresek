@@ -1,7 +1,7 @@
 // See header note in assemblers/home.ts about Phase 1 type-cast safety.
 import { getPageSections } from '../repositories/page-section-repo';
 import { getExtracurriculars } from '../repositories/extracurricular-repo';
-import { getGalleryItemsByIds } from '../repositories/gallery-repo';
+import { getAllGalleryItems } from '../repositories/gallery-repo';
 import { getFacilitiesGrouped } from '../repositories/facility-repo';
 import type {
   FacilitiesPageConfig, PageHeaderConfig, KegiatanCard,
@@ -18,7 +18,6 @@ type KegiatanSection = { meta: SectionMeta; cards: KegiatanCard[] };
 type GaleriMetaSection = {
   meta: SectionMeta;
   filterLabels: FacilitiesPageConfig['galeri']['filterLabels'];
-  featuredIds: string[];
 };
 type TatibSection = {
   meta: SectionMeta;
@@ -40,7 +39,7 @@ export async function assembleFacilities(): Promise<FacilitiesPageConfig> {
 
   const [ekskul, gallery, fac] = await Promise.all([
     getExtracurriculars(),
-    getGalleryItemsByIds(galeriMeta.featuredIds),
+    getAllGalleryItems(),
     getFacilitiesGrouped(),
   ]);
 

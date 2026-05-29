@@ -18,30 +18,11 @@ async function loadAllAchievements(): Promise<Achievement[]> {
 }
 
 /**
- * All achievements, ordered. Used by /profil's full prestasi list.
+ * All achievements, ordered. /profil shows the full list; /home shows the top-N.
  */
 export const getAllAchievements = unstable_cache(loadAllAchievements, ['achievements', 'all'], {
   tags: ['achievements'],
 });
-
-/**
- * Subset by explicit ID list, preserving the input order. Used by /home's
- * featured-5 list whose IDs are stored in PageSection.achievementsMeta.featuredIds.
- * Returns only achievements that actually exist; missing IDs are silently dropped.
- */
-export function getAchievementsByIds(ids: readonly string[]): Promise<Achievement[]> {
-  const cached = unstable_cache(
-    async () => {
-      const rows = await prisma.achievement.findMany({ where: { id: { in: [...ids] } } });
-      const byId = new Map(rows.map((r) => [r.id, rowToAchievement(r)]));
-      // Preserve caller-provided order.
-      return ids.map((id) => byId.get(id)).filter((x): x is Achievement => x !== undefined);
-    },
-    ['achievements', 'by-ids', ids.join(',')],
-    { tags: ['achievements'] },
-  );
-  return cached();
-}
 
 export type AchievementInput = Omit<Achievement, 'id'>;
 

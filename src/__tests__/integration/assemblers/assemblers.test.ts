@@ -11,37 +11,35 @@ describe('page assemblers (post-seed)', () => {
     // Seed the DB so assemblers have data to work with.
     execSync('npx tsx scripts/seed-content.ts', {
       stdio: 'pipe', shell: '/bin/bash',
-      env: { ...process.env, DATABASE_URL: 'postgresql://test:test@localhost:5433/smpn3_test?schema=public' },
+      env: process.env,
     });
   }, 60_000);
 
   afterAll(async () => { await prisma.$disconnect(); });
 
-  it('assembleHome scopes achievements + gallery via featuredIds', async () => {
+  it('assembleHome caps achievements + gallery to the top-N by order', async () => {
     const home = await assembleHome();
     expect(home.hero.titleLine1).toMatch(/Selamat Datang/);
     expect(home.stats.cards.length).toBeGreaterThan(0);
     expect(home.sambutan.signatureName).toBeTruthy();
     expect(home.programs.cards.length).toBeGreaterThan(0);
-    // Verify scoping: home should show ONLY its featured items (5 achievements
-    // + 8 gallery), NOT the combined dedup'd pool (would be 11 and 18).
-    // This is the visual-parity bug the per-page featuredIds fix prevents.
-    const { homePageConfig } = await import('@config/pages/home');
-    expect(home.achievements.items).toHaveLength(homePageConfig.achievements.items.length);
-    expect(home.gallery.items).toHaveLength(homePageConfig.gallery.items.length);
+    // Home shows the top-N of each list (5 achievements, 8 gallery) by order,
+    // so newly added items surface automatically without manual curation.
+    expect(home.achievements.items).toHaveLength(5);
+    expect(home.gallery.items).toHaveLength(8);
     expect(home.lokasi.cards.length).toBeGreaterThan(0);
     expect(home.ctaFinal.title).toBeTruthy();
   });
 
-  it('assembleProfile scopes prestasi via featuredIds', async () => {
+  it('assembleProfile returns the full ordered prestasi list', async () => {
     const profile = await assembleProfile();
     expect(profile.sejarah.timeline.length).toBeGreaterThan(0);
     expect(profile.visiMisi.misi.items.length).toBeGreaterThan(0);
     expect(profile.guru.teachers.length).toBeGreaterThan(0);
-    const { profilPageConfig } = await import('@config/pages/profil');
-    // /profil's prestasi section displays only the profil-featured set (6),
-    // not the combined achievements pool.
-    expect(profile.prestasi.items).toHaveLength(profilPageConfig.prestasi.items.length);
+    // /profil shows every achievement in the DB, ordered by the admin reorder
+    // column — so an admin add/edit is always reflected.
+    const total = await prisma.achievement.count();
+    expect(profile.prestasi.items).toHaveLength(total);
     expect(profile.struktur.chart.levels.length).toBeGreaterThan(0);
   });
 
@@ -58,15 +56,15 @@ describe('page assemblers (post-seed)', () => {
     expect(academic.kalender.events.length).toBeGreaterThan(0);
   });
 
-  it('assembleFacilities scopes galeri via featuredIds; ekskul ordered by category sequence', async () => {
+  it('assembleFacilities returns full ordered galeri; ekskul ordered by category sequence', async () => {
     const facilities = await assembleFacilities();
     expect(facilities.sarana.featured.length).toBeGreaterThan(0);
     expect(facilities.sarana.mini.length).toBeGreaterThan(0);
-    const { fasilitasPageConfig } = await import('@config/pages/fasilitas');
     // Ekskul: full list, but ordered by categoryOrder (wajib first), not alphabetical.
     expect(facilities.ekskul.items[0]?.category).toBe('wajib');
-    // Galeri: scoped to fasilitas-only featured set, not combined with home.
-    expect(facilities.galeri.items).toHaveLength(fasilitasPageConfig.galeri.items.length);
+    // Galeri: every gallery item in the DB, ordered by the admin reorder column.
+    const total = await prisma.galleryItem.count();
+    expect(facilities.galeri.items).toHaveLength(total);
   });
 
   it('assembleContact returns ContactPageConfig shape', async () => {

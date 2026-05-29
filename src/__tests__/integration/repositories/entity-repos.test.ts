@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/client';
 import { getTeachers } from '@/lib/data/repositories/teacher-repo';
-import { getAllAchievements, getAchievementsByIds } from '@/lib/data/repositories/achievement-repo';
+import { getAllAchievements } from '@/lib/data/repositories/achievement-repo';
 import { getExtracurriculars } from '@/lib/data/repositories/extracurricular-repo';
 
 describe('entity repositories', () => {
@@ -53,11 +53,6 @@ describe('entity repositories', () => {
     const items = await getAllAchievements();
     expect(items).toHaveLength(2);
     expect(items[0]?.id).toBe('a2'); // order 0 first
-  });
-
-  it('getAchievementsByIds preserves caller order and drops unknown IDs', async () => {
-    const items = await getAchievementsByIds(['a1', 'nonexistent', 'a2']);
-    expect(items.map((i) => i.id)).toEqual(['a1', 'a2']);
   });
 
   it('getExtracurriculars returns shape matching types.ts', async () => {

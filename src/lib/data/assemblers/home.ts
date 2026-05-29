@@ -3,19 +3,24 @@
 // remains safe; if Phase 2's admin UI ever stores invalid shapes, this assembler
 // will surface them via render errors rather than silent data corruption.
 import { getPageSections } from '../repositories/page-section-repo';
-import { getAchievementsByIds } from '../repositories/achievement-repo';
-import { getGalleryItemsByIds } from '../repositories/gallery-repo';
+import { getAllAchievements } from '../repositories/achievement-repo';
+import { getAllGalleryItems } from '../repositories/gallery-repo';
 import type {
   HomePageConfig, HeroConfig, SambutanConfig, AboutConfig,
   CtaFinal, SectionMeta, StatCard, ProgramCard, ContactCard, CtaLink,
 } from '@config/types';
 
-// Shape stored in DB for sections that wrap "meta + cta + featuredIds".
+// Home shows the most recent N entries of each list (ordered by the admin
+// drag-reorder `order` column), so newly added items appear automatically.
+const HOME_ACHIEVEMENTS_LIMIT = 5;
+const HOME_GALLERY_LIMIT = 8;
+
+// Shape stored in DB for sections that wrap "meta + cta".
 type GalleryMetaSection = {
-  meta: SectionMeta; ctaLabel: string; ctaHref: string; featuredIds: string[];
+  meta: SectionMeta; ctaLabel: string; ctaHref: string;
 };
 type AchievementsMetaSection = {
-  meta: SectionMeta; ctaLabel: string; ctaHref: string; featuredIds: string[];
+  meta: SectionMeta; ctaLabel: string; ctaHref: string;
 };
 type LokasiSection = {
   meta: SectionMeta; panelTitle: string; panelDescription: string;
@@ -37,12 +42,14 @@ export async function assembleHome(): Promise<HomePageConfig> {
   const lokasi = sections.lokasi as LokasiSection;
   const ctaFinal = sections.ctaFinal as CtaFinal;
 
-  // Scoped fetch: home only shows the IDs explicitly featured for home.
-  // This prevents "all 11 achievements" / "all 18 gallery items" bug.
-  const [achievements, gallery] = await Promise.all([
-    getAchievementsByIds(achievementsMeta.featuredIds),
-    getGalleryItemsByIds(galleryMeta.featuredIds),
+  // Home shows the top-N of each list by order; the full lists live on
+  // /profil (achievements) and /fasilitas (gallery).
+  const [allAchievements, allGallery] = await Promise.all([
+    getAllAchievements(),
+    getAllGalleryItems(),
   ]);
+  const achievements = allAchievements.slice(0, HOME_ACHIEVEMENTS_LIMIT);
+  const gallery = allGallery.slice(0, HOME_GALLERY_LIMIT);
 
   return {
     hero,
