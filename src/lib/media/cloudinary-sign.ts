@@ -37,13 +37,15 @@ export function signCloudinaryUpload(p: SignParams): SignResult {
   }
   // Cloudinary signature covers ONLY the params the client will send back at
   // upload time. The SDK alphabetizes internally; the order here is just for
-  // readability.
+  // readability. We omit `folder` when empty so the client can mirror that on
+  // upload (sending an empty folder would still mutate Cloudinary's hash).
+  const params: Record<string, string | number> = {
+    public_id: p.publicId,
+    timestamp: p.timestamp,
+  };
+  if (p.folder) params.folder = p.folder;
   const signature = cloudinary.utils.api_sign_request(
-    {
-      public_id: p.publicId,
-      folder: p.folder,
-      timestamp: p.timestamp,
-    },
+    params,
     env.CLOUDINARY_API_SECRET,
   );
   return { signature, apiKey: env.CLOUDINARY_API_KEY };

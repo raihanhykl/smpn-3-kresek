@@ -47,11 +47,14 @@ export const POST = withApiAuth(['ADMIN', 'EDITOR'], async (req, user) => {
   const existing = await getMediaAssetByHash(body.sha256Hex);
   if (existing) return NextResponse.json({ reused: true, media: existing });
 
-  const folder = `smpn3kresek/${body.kind}`;
-  const publicId = `${folder}/${body.sha256Hex.slice(0, 16)}`;
+  // publicId carries the full folder path; we deliberately do NOT send a
+  // separate `folder` param to Cloudinary. Cloudinary's upload endpoint
+  // concatenates folder + public_id, so sending both would produce a
+  // double-prefixed publicId like `smpn3kresek/image/smpn3kresek/image/abc`.
+  const publicId = `smpn3kresek/${body.kind}/${body.sha256Hex.slice(0, 16)}`;
   const resourceType = body.kind === 'pdf' ? 'raw' : 'image';
   const timestamp = Math.floor(Date.now() / 1000);
-  const { signature, apiKey } = signCloudinaryUpload({ publicId, folder, timestamp, resourceType });
+  const { signature, apiKey } = signCloudinaryUpload({ publicId, folder: '', timestamp, resourceType });
 
   return NextResponse.json({
     reused: false,
@@ -60,7 +63,8 @@ export const POST = withApiAuth(['ADMIN', 'EDITOR'], async (req, user) => {
     timestamp,
     signature,
     publicId,
-    folder,
+    // No folder in the response either — client must NOT include it in the
+    // FormData sent to Cloudinary, otherwise the double-prefix bug returns.
     resourceType,
     uploadUrl: `https://api.cloudinary.com/v1_1/${env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
   });

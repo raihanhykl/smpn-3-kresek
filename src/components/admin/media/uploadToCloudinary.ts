@@ -78,13 +78,17 @@ export async function uploadToCloudinary(
   const signBody: SignUploadResponse = await signRes.json();
   if (signBody.reused) return signBody.media;
 
-  // 2) Upload directly to Cloudinary.
+  // 2) Upload directly to Cloudinary. We send public_id (which already
+  // includes the folder prefix) but NOT a separate `folder` field —
+  // Cloudinary would concatenate folder + public_id and produce a
+  // double-prefixed publicId like smpn3kresek/image/smpn3kresek/image/abc.
+  // The signer in the server mirrors this omission so signatures match.
   const fd = new FormData();
   fd.append('api_key', signBody.apiKey);
   fd.append('timestamp', String(signBody.timestamp));
   fd.append('signature', signBody.signature);
   fd.append('public_id', signBody.publicId);
-  fd.append('folder', signBody.folder);
+  if (signBody.folder) fd.append('folder', signBody.folder);
   fd.append('file', file);
   const cldRes = await fetch(signBody.uploadUrl, { method: 'POST', body: fd });
   if (!cldRes.ok) throw new UploadError('cloudinary_failed');
@@ -131,7 +135,9 @@ type SignUploadResponse =
       timestamp: number;
       signature: string;
       publicId: string;
-      folder: string;
+      // Optional: the server omits `folder` when the publicId already encodes
+      // it, to avoid Cloudinary's folder+public_id double-prefix behaviour.
+      folder?: string;
       resourceType: 'image' | 'raw';
       uploadUrl: string;
     };

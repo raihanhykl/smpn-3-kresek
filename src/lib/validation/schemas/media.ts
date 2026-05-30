@@ -41,7 +41,9 @@ export type SignUploadResponse =
       timestamp: number;
       signature: string;
       publicId: string;
-      folder: string;
+      // Optional: server omits `folder` when publicId already encodes it
+      // (avoids Cloudinary's folder+public_id double-prefix bug).
+      folder?: string;
       resourceType: 'image' | 'raw';
       uploadUrl: string;
     };
