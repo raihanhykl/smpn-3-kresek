@@ -20,8 +20,27 @@ export const sectionMetaSchema = z.object({
   subtitle: z.string().optional(),
 });
 
+// Phase 3: the `url` branch now means "Cloudinary publicId", NOT an arbitrary
+// https URL. The cloud name is resolved at render time via `cldUrl(publicId, ...)`
+// so a handover to a different Cloudinary account is one env-var swap.
+// Validation rejects anything containing `://` (URL-shaped values) or starting
+// with `/` (path-shaped values).
+//
+// Alt-text note: `alt` stays required for the url branch (accessibility). The DB
+// column `Teacher.photoAlt` is nullable for legacy reasons; the row→entity mapper
+// coerces null to '' before parsing, and an audit in Phase 3 Task 0 confirms
+// zero existing url-kind rows in the dev DB.
 export const photoSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('url'), src: z.string().min(1), alt: z.string() }),
+  z.object({
+    kind: z.literal('url'),
+    src: z
+      .string()
+      .min(1, 'src wajib diisi')
+      .regex(/^[a-zA-Z0-9_\-/]+$/, 'src harus berupa Cloudinary publicId')
+      .refine((s) => !s.includes('://'), 'src harus publicId, bukan URL')
+      .refine((s) => !s.startsWith('/'), 'src tidak boleh dimulai dengan "/"'),
+    alt: z.string().min(1, 'Alt wajib diisi untuk aksesibilitas'),
+  }),
   z.object({
     kind: z.literal('gradient'),
     from: z.string().min(1),

@@ -22,6 +22,14 @@ process.env.AUTH_SECRET ??= 'test-secret-must-be-at-least-thirty-two-chars';
 process.env.AUTH_URL ??= 'http://localhost:3000';
 process.env.NEXT_PUBLIC_DATA_SOURCE ??= 'static';
 
+// Phase 3: Cloudinary stubs for integration tests. The signCloudinaryUpload
+// stub gate (Chunk 4) keys on NODE_ENV='test' (jest sets this automatically),
+// NOT on these placeholder values — so production creds in .env.local would
+// still be safe here.
+process.env.CLOUDINARY_API_KEY ??= 'test-key';
+process.env.CLOUDINARY_API_SECRET ??= 'test-secret';
+process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ??= 'test-cloud';
+
 // `next/cache` exposes `unstable_cache` and `revalidateTag`, both of which
 // require Next.js request/work-store context to function. Integration tests
 // run outside that context, so we mock the module to pass through the

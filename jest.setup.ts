@@ -1,3 +1,19 @@
+// Phase 3: env stubs MUST land before any module load that may transitively
+// pull src/lib/env.ts (the t3-env validator). Jest hoists `jest.mock` calls,
+// but top-level `process.env.*` assignments still run before module resolution
+// kicks in for the test files. Use `??=` so a real value from the shell wins.
+//
+// Pre-Phase-3 unit tests never imported @/lib/env, so AUTH_SECRET/AUTH_URL stubs
+// weren't needed here. The new cldUrl wrapper does import env, so we land both
+// auth + Cloudinary placeholders together to keep all unit suites runnable in
+// isolation regardless of DATABASE_URL being unset.
+process.env.AUTH_SECRET ??= 'test-secret-must-be-at-least-thirty-two-chars';
+process.env.AUTH_URL ??= 'http://localhost:3000';
+process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5432/unit-only-not-used';
+process.env.CLOUDINARY_API_KEY ??= 'test-key';
+process.env.CLOUDINARY_API_SECRET ??= 'test-secret';
+process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ??= 'test-cloud';
+
 import '@testing-library/jest-dom';
 import { TextDecoder, TextEncoder } from 'node:util';
 
