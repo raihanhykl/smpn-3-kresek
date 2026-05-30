@@ -10,7 +10,7 @@ import { EntityDrawer } from '@/components/admin/EntityDrawer';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
-import { GradientPhotoPicker, type GradientPhotoValue } from '@/components/admin/form/GradientPhotoPicker';
+import { GradientOnlyPhotoPicker, type GradientOnlyPhotoValue } from '@/components/admin/form/GradientOnlyPhotoPicker';
 import {
   createFacilityAction, updateFacilityAction, deleteFacilityAction, reorderFacilitiesAction,
 } from '@/app/(admin)/admin/entities/_actions/facility-actions';
@@ -126,7 +126,7 @@ export function FacilityManager({ initialItems }: { initialItems: AdminFacility[
     startTransition(async () => { await reorderFacilitiesAction(ids); });
   }
 
-  const photoValue: GradientPhotoValue = {
+  const photoValue: GradientOnlyPhotoValue = {
     kind: 'gradient', from: watch('from') ?? '#DBEAFE', to: watch('to') ?? '#93C5FD', emoji: watch('emoji') ?? '🏫',
   };
 
@@ -179,7 +179,7 @@ export function FacilityManager({ initialItems }: { initialItems: AdminFacility[
                 <textarea id="fc-description" rows={3} className={inputClass} {...register('description')} />
               </FormField>
               <FormField label="Gambar" htmlFor="fc-photo" error={errors.emoji?.message}>
-                <GradientPhotoPicker
+                <GradientOnlyPhotoPicker
                   value={photoValue}
                   onChange={(val) => {
                     setValue('from', val.from);

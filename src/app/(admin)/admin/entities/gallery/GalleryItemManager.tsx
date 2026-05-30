@@ -11,7 +11,7 @@ import { EntityDrawer } from '@/components/admin/EntityDrawer';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
-import { GradientPhotoPicker, type GradientPhotoValue } from '@/components/admin/form/GradientPhotoPicker';
+import { GradientOnlyPhotoPicker, type GradientOnlyPhotoValue } from '@/components/admin/form/GradientOnlyPhotoPicker';
 import {
   createGalleryItemAction, updateGalleryItemAction, deleteGalleryItemAction, reorderGalleryItemsAction,
 } from '@/app/(admin)/admin/entities/_actions/gallery-actions';
@@ -101,7 +101,7 @@ export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem
     startTransition(async () => { await reorderGalleryItemsAction(ids); });
   }
 
-  const photoValue: GradientPhotoValue = {
+  const photoValue: GradientOnlyPhotoValue = {
     kind: 'gradient', from: watch('from') ?? '#DBEAFE', to: watch('to') ?? '#93C5FD', emoji: watch('emoji') ?? '📷',
   };
 
@@ -142,7 +142,7 @@ export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem
             <input id="g-caption" className={inputClass} {...register('caption')} />
           </FormField>
           <FormField label="Gambar" htmlFor="g-photo" error={errors.emoji?.message}>
-            <GradientPhotoPicker
+            <GradientOnlyPhotoPicker
               value={photoValue}
               onChange={(v) => {
                 setValue('from', v.from);

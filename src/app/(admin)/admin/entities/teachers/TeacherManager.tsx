@@ -2,33 +2,40 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Teacher } from '@config/types';
+import type { Photo, Teacher } from '@config/types';
+import { photoSchema } from '@/lib/validation/schemas/shared';
 import { EntityTable } from '@/components/admin/EntityTable';
 import { EntityDrawer } from '@/components/admin/EntityDrawer';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
-import { GradientPhotoPicker, type GradientPhotoValue } from '@/components/admin/form/GradientPhotoPicker';
+import { PhotoPicker } from '@/components/admin/form/PhotoPicker';
+import { useImagePicker } from '@/components/admin/media/useImagePicker';
 import {
   createTeacherAction, updateTeacherAction, deleteTeacherAction, reorderTeachersAction,
 } from '@/app/(admin)/admin/entities/_actions/teacher-actions';
 
+// Phase 3: form value carries `photo: Photo` as a single nested discriminated
+// union (validated by the shared photoSchema). The flat from/to/emoji and
+// src/alt fields are gone — Controller binds the picker directly.
 const formSchema = z.object({
   name: z.string().min(1, 'Nama wajib diisi'),
   position: z.string().min(1, 'Jabatan wajib diisi'),
   badge: z.string(),
   category: z.enum(['pimpinan', 'guru', 'tu']),
-  emoji: z.string().min(1, 'Emoji wajib diisi'),
-  from: z.string().min(1),
-  to: z.string().min(1),
+  photo: photoSchema,
 });
 type FormValues = z.infer<typeof formSchema>;
 
 const CATEGORY_LABEL: Record<Teacher['category'], string> = {
   pimpinan: 'Pimpinan', guru: 'Guru', tu: 'Tata Usaha',
+};
+
+const DEFAULT_GRADIENT_PHOTO: Photo = {
+  kind: 'gradient', from: '#DBEAFE', to: '#93C5FD', emoji: '👤',
 };
 
 export function TeacherManager({ initialTeachers }: { initialTeachers: Teacher[] }) {
@@ -39,31 +46,36 @@ export function TeacherManager({ initialTeachers }: { initialTeachers: Teacher[]
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { open: openImagePicker } = useImagePicker();
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } =
+  const { register, handleSubmit, reset, control, formState: { errors } } =
     useForm<FormValues>({ resolver: zodResolver(formSchema) });
 
   function openCreate() {
     setEditing(null);
     setFormError(null);
-    reset({ name: '', position: '', badge: '', category: 'guru', emoji: '👤', from: '#DBEAFE', to: '#93C5FD' });
+    reset({
+      name: '', position: '', badge: '', category: 'guru',
+      photo: DEFAULT_GRADIENT_PHOTO,
+    });
     setDrawerOpen(true);
   }
 
   function openEdit(t: Teacher) {
     setEditing(t);
     setFormError(null);
-    const g = t.photo.kind === 'gradient' ? t.photo : { from: '#DBEAFE', to: '#93C5FD', emoji: '👤' };
     reset({
       name: t.name, position: t.position, badge: t.badge, category: t.category,
-      emoji: g.emoji, from: g.from, to: g.to,
+      photo: t.photo,
     });
     setDrawerOpen(true);
   }
 
   function toInput(v: FormValues) {
-    const photo: GradientPhotoValue = { kind: 'gradient', from: v.from, to: v.to, emoji: v.emoji };
-    return { name: v.name, position: v.position, badge: v.badge, category: v.category, photo };
+    return {
+      name: v.name, position: v.position, badge: v.badge,
+      category: v.category, photo: v.photo,
+    };
   }
 
   function onSubmit(v: FormValues) {
@@ -100,9 +112,13 @@ export function TeacherManager({ initialTeachers }: { initialTeachers: Teacher[]
     startTransition(async () => { await reorderTeachersAction(ids); });
   }
 
-  const photoValue: GradientPhotoValue = {
-    kind: 'gradient', from: watch('from') ?? '#DBEAFE', to: watch('to') ?? '#93C5FD', emoji: watch('emoji') ?? '👤',
-  };
+  // errors.photo is a union of per-branch field errors; surface the first
+  // available message string so FormField can render it.
+  const photoErrorMessage =
+    (errors.photo as { message?: string } | undefined)?.message ??
+    (errors.photo as { src?: { message?: string } } | undefined)?.src?.message ??
+    (errors.photo as { alt?: { message?: string } } | undefined)?.alt?.message ??
+    (errors.photo as { emoji?: { message?: string } } | undefined)?.emoji?.message;
 
   return (
     <div>
@@ -154,14 +170,17 @@ export function TeacherManager({ initialTeachers }: { initialTeachers: Teacher[]
               <option value="tu">Tata Usaha</option>
             </select>
           </FormField>
-          <FormField label="Foto" htmlFor="t-photo" error={errors.emoji?.message}>
-            <GradientPhotoPicker
-              value={photoValue}
-              onChange={(v) => {
-                setValue('from', v.from);
-                setValue('to', v.to);
-                setValue('emoji', v.emoji);
-              }}
+          <FormField label="Foto" htmlFor="t-photo" error={photoErrorMessage}>
+            <Controller
+              name="photo"
+              control={control}
+              render={({ field }) => (
+                <PhotoPicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  openImagePicker={openImagePicker}
+                />
+              )}
             />
           </FormField>
           {formError ? <p className="text-sm text-red-600" role="alert">{formError}</p> : null}

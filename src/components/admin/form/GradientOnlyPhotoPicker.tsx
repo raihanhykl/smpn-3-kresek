@@ -2,7 +2,13 @@
 
 import { inputClass } from './FormField';
 
-export type GradientPhotoValue = { kind: 'gradient'; from: string; to: string; emoji: string };
+/**
+ * Renamed from GradientPhotoPicker in Phase 3. The unified PhotoPicker
+ * (gradient OR url) lives next to this. Surfaces that don't yet have a
+ * `photo: Photo` column (Gallery, Facility — only store gradient fields)
+ * keep importing this adapter; nothing else changes.
+ */
+export type GradientOnlyPhotoValue = { kind: 'gradient'; from: string; to: string; emoji: string };
 
 const PRESET_GRADIENTS: { from: string; to: string; label: string }[] = [
   { from: '#DBEAFE', to: '#93C5FD', label: 'Biru' },
@@ -13,11 +19,11 @@ const PRESET_GRADIENTS: { from: string; to: string; label: string }[] = [
   { from: '#FFF7ED', to: '#FED7AA', label: 'Oranye' },
 ];
 
-export function GradientPhotoPicker({
+export function GradientOnlyPhotoPicker({
   value, onChange,
 }: {
-  value: GradientPhotoValue;
-  onChange: (v: GradientPhotoValue) => void;
+  value: GradientOnlyPhotoValue;
+  onChange: (v: GradientOnlyPhotoValue) => void;
 }) {
   return (
     <div className="space-y-3">
