@@ -2,6 +2,7 @@ import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db/client';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
 import type { MediaKind } from '@/lib/media/limits';
+import { toCachedUrl } from '@/lib/media/branded-types';
 
 export type DocumentSlotData = { id: string; mediaId: string | null };
 
@@ -56,7 +57,7 @@ async function loadDocumentSlotWithMedia(id: string): Promise<DocumentSlotWithMe
     media: {
       id: m.id,
       kind: m.kind as MediaKind,
-      url: m.url,
+      url: toCachedUrl(m.url),
       publicId: m.publicId,
       alt: m.alt,
       filename: m.filename,

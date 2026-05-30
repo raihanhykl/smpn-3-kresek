@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/client';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
 import type { MediaKind } from '@/lib/media/limits';
+import { toCachedUrl } from '@/lib/media/branded-types';
 
 /**
  * Phase 3 MediaAsset repository.
@@ -33,7 +34,9 @@ function toPublic(row: MediaAssetRow): PublicMediaAsset {
   return {
     id: row.id,
     kind: row.kind as MediaKind,
-    url: row.url,
+    // Brand the cached URL — render code is expected to go through
+    // cldUrl(publicId, variant) instead. See branded-types.ts header.
+    url: toCachedUrl(row.url),
     publicId: row.publicId,
     alt: row.alt,
     filename: row.filename,

@@ -2,6 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MediaManager } from '@/app/(admin)/admin/media/MediaManager';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
+import { toCachedUrl } from '@/lib/media/branded-types';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: jest.fn() }),
@@ -17,7 +18,8 @@ jest.mock('@/app/(admin)/admin/media/_actions/media-actions', () => ({
 
 function asset(id: string, overrides: Partial<PublicMediaAsset> = {}): PublicMediaAsset {
   return {
-    id, kind: 'image', url: 'https://res.cloudinary.com/test-cloud/image/upload/v1/' + id + '.jpg',
+    id, kind: 'image',
+    url: toCachedUrl('https://res.cloudinary.com/test-cloud/image/upload/v1/' + id + '.jpg'),
     publicId: 'smpn3kresek/image/' + id, alt: null, filename: `${id}.jpg`,
     sizeBytes: 1024, mimeType: 'image/jpeg', width: null, height: null,
     ...overrides,

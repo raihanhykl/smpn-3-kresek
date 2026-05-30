@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { MediaKind } from '@/lib/media/limits';
+import type { CloudinaryCachedUrl } from '@/lib/media/branded-types';
 
 /**
  * Phase 3 Cloudinary endpoint contracts. Shared between client (uploader),
@@ -81,7 +82,13 @@ export type ConfirmRequest = z.infer<typeof confirmRequestSchema>;
 export type PublicMediaAsset = {
   id: string;
   kind: MediaKind;
-  url: string;
+  /**
+   * Cached Cloudinary URL — render code MUST resolve via cldUrl(publicId)
+   * instead. The brand documents the rule; the type is structurally a string
+   * so existing JSON serialization still works. See docs/superpowers/specs/
+   * 2026-05-30-phase-3-storage-and-handover.md for the rationale.
+   */
+  url: CloudinaryCachedUrl;
   publicId: string;
   alt: string | null;
   filename: string;
