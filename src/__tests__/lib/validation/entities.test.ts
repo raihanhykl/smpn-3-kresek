@@ -77,7 +77,7 @@ describe('entity Zod schemas', () => {
   it('facilitySchema discriminates featured vs mini', () => {
     expect(facilitySchema.safeParse({
       kind: 'featured', id: 'f1', name: 'Lab', description: 'd',
-      emoji: '🔬', gradientFrom: '#000', gradientTo: '#fff',
+      photo: { kind: 'gradient', from: '#000', to: '#fff', emoji: '🔬' },
     }).success).toBe(true);
     expect(facilitySchema.safeParse({
       kind: 'mini', id: 'f2', name: 'Kantin', icon: '🍽️',

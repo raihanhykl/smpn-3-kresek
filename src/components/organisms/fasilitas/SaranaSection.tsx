@@ -1,5 +1,6 @@
 import { Container } from '@components/atoms/Container';
 import { SectionHeading } from '@components/atoms/SectionHeading';
+import { cldUrl } from '@/lib/media/cldUrl';
 import type { FacilitiesPageConfig } from '@config/types';
 
 export function SaranaSection({ data }: { data: FacilitiesPageConfig['sarana'] }) {
@@ -16,23 +17,40 @@ export function SaranaSection({ data }: { data: FacilitiesPageConfig['sarana'] }
           ))}
         </div>
         <div className="mb-10 grid auto-rows-[220px] grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {data.featured.map((f, idx) => (
-            <article
-              key={f.id}
-              className={`relative overflow-hidden rounded-md shadow-sm transition-shadow hover:shadow-md ${
-                idx === 0 ? 'col-span-2 row-span-2' : f.span === 'wide' ? 'col-span-2' : ''
-              }`}
-              style={{ background: `linear-gradient(135deg, ${f.gradientFrom}, ${f.gradientTo})` }}
-            >
-              <div className="flex h-full items-center justify-center text-7xl text-white/85" aria-hidden>
-                {f.emoji}
-              </div>
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-4">
-                <h3 className="font-heading text-base font-bold text-white">{f.name}</h3>
-                <p className="text-xs text-white/80">{f.description}</p>
-              </div>
-            </article>
-          ))}
+          {data.featured.map((f, idx) => {
+            // Phase 3b: render conditional on photo.kind. Gradient branch keeps
+            // the legacy emoji-on-gradient; url branch renders a Cloudinary
+            // asset via cldUrl (broken-image fallback is browser default —
+            // proper onError fallback deferred to Phase 5).
+            const isUrl = f.photo.kind === 'url';
+            const wrapperClass = `relative overflow-hidden rounded-md shadow-sm transition-shadow hover:shadow-md ${
+              idx === 0 ? 'col-span-2 row-span-2' : f.span === 'wide' ? 'col-span-2' : ''
+            }`;
+            return (
+              <article
+                key={f.id}
+                className={wrapperClass}
+                style={isUrl ? undefined : { background: `linear-gradient(135deg, ${f.photo.kind === 'gradient' ? f.photo.from : ''}, ${f.photo.kind === 'gradient' ? f.photo.to : ''})` }}
+              >
+                {isUrl && f.photo.kind === 'url' ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
+                  <img
+                    src={cldUrl(f.photo.src, 'hero')}
+                    alt={f.photo.alt}
+                    className="h-full w-full object-cover"
+                  />
+                ) : f.photo.kind === 'gradient' ? (
+                  <div className="flex h-full items-center justify-center text-7xl text-white/85" aria-hidden>
+                    {f.photo.emoji}
+                  </div>
+                ) : null}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-4">
+                  <h3 className="font-heading text-base font-bold text-white">{f.name}</h3>
+                  <p className="text-xs text-white/80">{f.description}</p>
+                </div>
+              </article>
+            );
+          })}
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {data.mini.map((m) => (

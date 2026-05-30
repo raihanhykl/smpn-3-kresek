@@ -312,17 +312,32 @@ async function main() {
   for (let i = 0; i < fasilitasPageConfig.sarana.featured.length; i++) {
     const f = fasilitasPageConfig.sarana.featured[i]!;
     const order = i;
+    const photoCols = f.photo.kind === 'url'
+      ? {
+          photoKind: 'url',
+          photoSrc: f.photo.src,
+          photoAlt: f.photo.alt,
+          photoFrom: null,
+          photoTo: null,
+          photoEmoji: null,
+        }
+      : {
+          photoKind: 'gradient',
+          photoSrc: null,
+          photoAlt: null,
+          photoFrom: f.photo.from,
+          photoTo: f.photo.to,
+          photoEmoji: f.photo.emoji,
+        };
     await prisma.facility.upsert({
       where: { id: f.id },
       create: {
         id: f.id, kind: 'featured', name: f.name, description: f.description,
-        emoji: f.emoji, gradientFrom: f.gradientFrom, gradientTo: f.gradientTo,
-        span: f.span ?? null, icon: null, order,
+        ...photoCols, span: f.span ?? null, icon: null, order,
       },
       update: {
         kind: 'featured', name: f.name, description: f.description,
-        emoji: f.emoji, gradientFrom: f.gradientFrom, gradientTo: f.gradientTo,
-        span: f.span ?? null, icon: null, order,
+        ...photoCols, span: f.span ?? null, icon: null, order,
       },
     });
   }
@@ -333,12 +348,18 @@ async function main() {
       where: { id: m.id },
       create: {
         id: m.id, kind: 'mini', name: m.name, icon: m.icon,
-        description: null, emoji: null, gradientFrom: null, gradientTo: null, span: null,
+        description: null,
+        photoKind: null, photoSrc: null, photoAlt: null,
+        photoFrom: null, photoTo: null, photoEmoji: null,
+        span: null,
         order,
       },
       update: {
         kind: 'mini', name: m.name, icon: m.icon,
-        description: null, emoji: null, gradientFrom: null, gradientTo: null, span: null,
+        description: null,
+        photoKind: null, photoSrc: null, photoAlt: null,
+        photoFrom: null, photoTo: null, photoEmoji: null,
+        span: null,
         order,
       },
     });

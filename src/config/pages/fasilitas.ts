@@ -22,12 +22,12 @@ export const fasilitasPageConfig: FacilitiesPageConfig = {
       { value: '1', label: 'Lapangan Olahraga' },
     ],
     featured: [
-      { id: 'f1', name: 'Perpustakaan', description: 'Koleksi buku lengkap dan ruang baca nyaman', emoji: '📚', gradientFrom: '#1565C0', gradientTo: '#1E88E5', span: 'wide' },
-      { id: 'f2', name: 'Laboratorium IPA', description: 'Peralatan sains lengkap', emoji: '🔬', gradientFrom: '#16A34A', gradientTo: '#22C55E' },
-      { id: 'f3', name: 'Laboratorium Komputer', description: 'PC modern & internet', emoji: '💻', gradientFrom: '#F59E0B', gradientTo: '#FBBF24' },
-      { id: 'f4', name: 'Lapangan Olahraga', description: 'Lapangan serbaguna & trek lari', emoji: '🏟', gradientFrom: '#0D47A1', gradientTo: '#1565C0', span: 'wide' },
-      { id: 'f5', name: 'Mushola Al-Hidayah', description: 'Ibadah & kegiatan keagamaan', emoji: '🕌', gradientFrom: '#7C3AED', gradientTo: '#A855F7' },
-      { id: 'f6', name: '12 Ruang Kelas', description: 'Ber-AC & multimedia', emoji: '🏫', gradientFrom: '#0F766E', gradientTo: '#14B8A6' },
+      {id: 'f1', name: 'Perpustakaan', description: 'Koleksi buku lengkap dan ruang baca nyaman', photo: { kind: 'gradient', from: '#1565C0', to: '#1E88E5', emoji: '📚' }, span: 'wide' },
+      {id: 'f2', name: 'Laboratorium IPA', description: 'Peralatan sains lengkap', photo: { kind: 'gradient', from: '#16A34A', to: '#22C55E', emoji: '🔬' } },
+      {id: 'f3', name: 'Laboratorium Komputer', description: 'PC modern & internet', photo: { kind: 'gradient', from: '#F59E0B', to: '#FBBF24', emoji: '💻' } },
+      {id: 'f4', name: 'Lapangan Olahraga', description: 'Lapangan serbaguna & trek lari', photo: { kind: 'gradient', from: '#0D47A1', to: '#1565C0', emoji: '🏟' }, span: 'wide' },
+      {id: 'f5', name: 'Mushola Al-Hidayah', description: 'Ibadah & kegiatan keagamaan', photo: { kind: 'gradient', from: '#7C3AED', to: '#A855F7', emoji: '🕌' } },
+      {id: 'f6', name: '12 Ruang Kelas', description: 'Ber-AC & multimedia', photo: { kind: 'gradient', from: '#0F766E', to: '#14B8A6', emoji: '🏫' } },
     ],
     mini: [
       { id: 'm1', icon: '🏥', name: 'UKS' },

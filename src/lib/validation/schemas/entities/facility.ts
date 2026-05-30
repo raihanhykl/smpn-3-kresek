@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { photoSchema } from '../shared';
 
 export const facilitySchema = z.discriminatedUnion('kind', [
   z.object({
@@ -6,9 +7,7 @@ export const facilitySchema = z.discriminatedUnion('kind', [
     id: z.string().min(1),
     name: z.string().min(1),
     description: z.string().min(1),
-    emoji: z.string().min(1),
-    gradientFrom: z.string().min(1),
-    gradientTo: z.string().min(1),
+    photo: photoSchema,
     span: z.enum(['wide', 'tall', 'normal']).optional(),
   }),
   z.object({

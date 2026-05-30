@@ -414,9 +414,11 @@ export interface FacilityCard {
   id: string;
   name: string;
   description: string;
-  emoji: string;
-  gradientFrom: string;
-  gradientTo: string;
+  /**
+   * Phase 3b: featured kind's photo is a Photo discriminated union.
+   * Gradient branch is the legacy default; url branch supports uploads.
+   */
+  photo: Photo;
   span?: 'wide' | 'tall' | 'normal';
 }
 

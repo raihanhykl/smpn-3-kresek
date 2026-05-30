@@ -2,41 +2,40 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import type { Photo } from '@config/types';
+import { photoSchema } from '@/lib/validation/schemas/shared';
 import { EntityTable } from '@/components/admin/EntityTable';
 import { EntityDrawer } from '@/components/admin/EntityDrawer';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
-import { GradientOnlyPhotoPicker, type GradientOnlyPhotoValue } from '@/components/admin/form/GradientOnlyPhotoPicker';
+import { PhotoPicker } from '@/components/admin/form/PhotoPicker';
+import { useImagePicker } from '@/components/admin/media/useImagePicker';
 import {
   createFacilityAction, updateFacilityAction, deleteFacilityAction, reorderFacilitiesAction,
 } from '@/app/(admin)/admin/entities/_actions/facility-actions';
 import type { AdminFacility } from '@/lib/data/repositories/facility-repo';
 
-// One flat form covering both kinds; the kind select drives which fields are
-// required. We validate the active branch via superRefine so RHF surfaces the
-// correct errors without a discriminated-union resolver (which can't switch
-// fields mid-form cleanly).
+const DEFAULT_GRADIENT_PHOTO: Photo = {
+  kind: 'gradient', from: '#DBEAFE', to: '#93C5FD', emoji: '🏫',
+};
+
+// Featured-only fields validated when kind='featured'; mini-only when 'mini'.
 const formSchema = z.object({
   kind: z.enum(['featured', 'mini']),
   name: z.string().min(1, 'Nama wajib diisi'),
-  // featured-only
   description: z.string(),
-  emoji: z.string(),
-  from: z.string(),
-  to: z.string(),
+  photo: photoSchema,
   span: z.enum(['normal', 'wide', 'tall']),
-  // mini-only
   icon: z.string(),
 }).superRefine((v, ctx) => {
   if (v.kind === 'featured') {
     if (!v.description.trim()) ctx.addIssue({ code: 'custom', message: 'Deskripsi wajib diisi', path: ['description'] });
-    if (!v.emoji.trim()) ctx.addIssue({ code: 'custom', message: 'Emoji wajib diisi', path: ['emoji'] });
-  } else {
-    if (!v.icon.trim()) ctx.addIssue({ code: 'custom', message: 'Ikon wajib diisi', path: ['icon'] });
+  } else if (!v.icon.trim()) {
+    ctx.addIssue({ code: 'custom', message: 'Ikon wajib diisi', path: ['icon'] });
   }
 });
 type FormValues = z.infer<typeof formSchema>;
@@ -51,8 +50,9 @@ export function FacilityManager({ initialItems }: { initialItems: AdminFacility[
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { open: openImagePicker } = useImagePicker();
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } =
+  const { register, handleSubmit, reset, control, watch, formState: { errors } } =
     useForm<FormValues>({ resolver: zodResolver(formSchema) });
 
   const kind = watch('kind');
@@ -60,7 +60,10 @@ export function FacilityManager({ initialItems }: { initialItems: AdminFacility[
   function openCreate() {
     setEditing(null);
     setFormError(null);
-    reset({ kind: 'featured', name: '', description: '', emoji: '🏫', from: '#DBEAFE', to: '#93C5FD', span: 'normal', icon: '🏫' });
+    reset({
+      kind: 'featured', name: '', description: '',
+      photo: DEFAULT_GRADIENT_PHOTO, span: 'normal', icon: '🏫',
+    });
     setDrawerOpen(true);
   }
 
@@ -69,13 +72,13 @@ export function FacilityManager({ initialItems }: { initialItems: AdminFacility[
     setFormError(null);
     if (f.kind === 'featured') {
       reset({
-        kind: 'featured', name: f.name, description: f.description, emoji: f.emoji,
-        from: f.gradientFrom, to: f.gradientTo, span: f.span ?? 'normal', icon: '🏫',
+        kind: 'featured', name: f.name, description: f.description,
+        photo: f.photo, span: f.span ?? 'normal', icon: '🏫',
       });
     } else {
       reset({
         kind: 'mini', name: f.name, icon: f.icon,
-        description: '', emoji: '🏫', from: '#DBEAFE', to: '#93C5FD', span: 'normal',
+        description: '', photo: DEFAULT_GRADIENT_PHOTO, span: 'normal',
       });
     }
     setDrawerOpen(true);
@@ -84,8 +87,10 @@ export function FacilityManager({ initialItems }: { initialItems: AdminFacility[
   function toInput(v: FormValues) {
     if (v.kind === 'featured') {
       return {
-        kind: 'featured' as const, name: v.name, description: v.description.trim(),
-        emoji: v.emoji, gradientFrom: v.from, gradientTo: v.to,
+        kind: 'featured' as const,
+        name: v.name,
+        description: v.description.trim(),
+        photo: v.photo,
         ...(v.span !== 'normal' ? { span: v.span } : {}),
       };
     }
@@ -126,9 +131,11 @@ export function FacilityManager({ initialItems }: { initialItems: AdminFacility[
     startTransition(async () => { await reorderFacilitiesAction(ids); });
   }
 
-  const photoValue: GradientOnlyPhotoValue = {
-    kind: 'gradient', from: watch('from') ?? '#DBEAFE', to: watch('to') ?? '#93C5FD', emoji: watch('emoji') ?? '🏫',
-  };
+  const photoErrorMessage =
+    (errors.photo as { message?: string } | undefined)?.message ??
+    (errors.photo as { src?: { message?: string } } | undefined)?.src?.message ??
+    (errors.photo as { alt?: { message?: string } } | undefined)?.alt?.message ??
+    (errors.photo as { emoji?: { message?: string } } | undefined)?.emoji?.message;
 
   return (
     <div>
@@ -178,14 +185,18 @@ export function FacilityManager({ initialItems }: { initialItems: AdminFacility[
               <FormField label="Deskripsi" htmlFor="fc-description" error={errors.description?.message}>
                 <textarea id="fc-description" rows={3} className={inputClass} {...register('description')} />
               </FormField>
-              <FormField label="Gambar" htmlFor="fc-photo" error={errors.emoji?.message}>
-                <GradientOnlyPhotoPicker
-                  value={photoValue}
-                  onChange={(val) => {
-                    setValue('from', val.from);
-                    setValue('to', val.to);
-                    setValue('emoji', val.emoji);
-                  }}
+              <FormField label="Gambar" htmlFor="fc-photo" error={photoErrorMessage}>
+                <Controller
+                  name="photo"
+                  control={control}
+                  render={({ field }) => (
+                    <PhotoPicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      openImagePicker={openImagePicker}
+                      gradientDefaults={{ from: '#DBEAFE', to: '#93C5FD', emoji: '🏫' }}
+                    />
+                  )}
                 />
               </FormField>
               <FormField label="Ukuran" htmlFor="fc-span" hint="Tata letak di grid" error={errors.span?.message}>

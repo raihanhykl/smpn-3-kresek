@@ -193,9 +193,16 @@ model Facility {
   kind         String   // "featured" | "mini"
   name         String
   description  String?  // only used when kind="featured"
-  emoji        String?  // only used when kind="featured"
-  gradientFrom String?  // only used when kind="featured"
-  gradientTo   String?  // only used when kind="featured"
+  // Phase 3b: featured kind's photo migrates from flat emoji/gradient* to
+  // the shared 6-column Photo discriminated union. Mini kind stays icon-only.
+  // CHECK constraint enforces: (kind='featured' → photoKind NOT NULL)
+  // AND (kind='mini' → photoKind NULL).
+  photoKind    String?  // "gradient" | "url" — only set when kind="featured"
+  photoSrc     String?
+  photoAlt     String?
+  photoFrom    String?
+  photoTo      String?
+  photoEmoji   String?
   span         String?  // only used when kind="featured" — "wide" | "tall" | "normal"
   icon         String?  // only used when kind="mini"
   order        Int      @default(0)

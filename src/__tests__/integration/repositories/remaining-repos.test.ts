@@ -36,8 +36,9 @@ describe('remaining entity repositories', () => {
     });
     await prisma.facility.createMany({
       data: [
-        { id: 'f1', kind: 'featured', name: 'Lab', description: 'd', emoji: '🔬',
-          gradientFrom: '#000', gradientTo: '#fff', order: 0 },
+        { id: 'f1', kind: 'featured', name: 'Lab', description: 'd',
+          photoKind: 'gradient', photoEmoji: '🔬', photoFrom: '#000', photoTo: '#fff',
+          order: 0 },
         { id: 'f2', kind: 'mini', name: 'Kantin', icon: '🍽️', order: 0 },
       ],
     });
@@ -85,7 +86,9 @@ describe('remaining entity repositories', () => {
     const grouped = await getFacilitiesGrouped();
     expect(grouped.featured).toHaveLength(1);
     expect(grouped.mini).toHaveLength(1);
-    expect(grouped.featured[0]?.emoji).toBe('🔬');
+    const featPhoto = grouped.featured[0]?.photo;
+    expect(featPhoto?.kind).toBe('gradient');
+    if (featPhoto?.kind === 'gradient') expect(featPhoto.emoji).toBe('🔬');
   });
 
   it('getOrganizationChart returns levels grouped by level number', async () => {
