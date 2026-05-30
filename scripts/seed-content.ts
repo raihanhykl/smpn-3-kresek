@@ -99,7 +99,7 @@ async function main() {
     jadwal: akademikPageConfig.jadwal,
     metode: akademikPageConfig.metode,
     penilaian: akademikPageConfig.penilaian,
-    kalenderMeta: { meta: akademikPageConfig.kalender.meta, events: akademikPageConfig.kalender.events, downloadLabel: akademikPageConfig.kalender.downloadLabel, downloadHref: akademikPageConfig.kalender.downloadHref },
+    kalenderMeta: { meta: akademikPageConfig.kalender.meta, events: akademikPageConfig.kalender.events },
     ctaFinal: akademikPageConfig.ctaFinal,
   });
 
@@ -114,7 +114,8 @@ async function main() {
       filterLabels: fasilitasPageConfig.galeri.filterLabels,
       featuredIds: fasilitasPageConfig.galeri.items.map((g) => g.id),
     },
-    tatib: fasilitasPageConfig.tatib,
+    // Strip runtime-only documentSlot from the static seed — assemblers re-source it.
+    tatib: { meta: fasilitasPageConfig.tatib.meta, accordions: fasilitasPageConfig.tatib.accordions },
     ctaFinal: fasilitasPageConfig.ctaFinal,
   });
 

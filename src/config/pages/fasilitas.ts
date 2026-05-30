@@ -223,8 +223,9 @@ export const fasilitasPageConfig: FacilitiesPageConfig = {
         ],
       },
     ],
-    downloadLabel: '⬇ Unduh Buku Tata Tertib Lengkap (PDF)',
-    downloadHref: '/docs/tata-tertib.pdf',
+    // Phase 3: download sourced from DocumentSlot 'tata-tertib' at assembler
+    // runtime via getDocumentSlotWithMedia. Static value stays null.
+    documentSlot: null,
   },
   ctaFinal: {
     title: 'Tertarik Bergabung dengan Kami?',

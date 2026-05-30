@@ -3,6 +3,7 @@ import { getPageSections } from '../repositories/page-section-repo';
 import { getExtracurriculars } from '../repositories/extracurricular-repo';
 import { getAllGalleryItems } from '../repositories/gallery-repo';
 import { getFacilitiesGrouped } from '../repositories/facility-repo';
+import { getDocumentSlotWithMedia } from '../repositories/document-slot-repo';
 import type {
   FacilitiesPageConfig, PageHeaderConfig, KegiatanCard,
   AccordionContent, CtaFinal, SectionMeta,
@@ -19,12 +20,9 @@ type GaleriMetaSection = {
   meta: SectionMeta;
   filterLabels: FacilitiesPageConfig['galeri']['filterLabels'];
 };
-type TatibSection = {
-  meta: SectionMeta;
-  accordions: AccordionContent[];
-  downloadLabel: string;
-  downloadHref: string;
-};
+// Phase 3: tatib no longer carries downloadLabel/downloadHref. The download
+// link is sourced from the DocumentSlot at assembler runtime.
+type TatibSection = { meta: SectionMeta; accordions: AccordionContent[] };
 
 export async function assembleFacilities(): Promise<FacilitiesPageConfig> {
   const sections = await getPageSections('fasilitas');
@@ -37,10 +35,11 @@ export async function assembleFacilities(): Promise<FacilitiesPageConfig> {
   const tatib = sections.tatib as TatibSection;
   const ctaFinal = sections.ctaFinal as CtaFinal;
 
-  const [ekskul, gallery, fac] = await Promise.all([
+  const [ekskul, gallery, fac, tatibSlot] = await Promise.all([
     getExtracurriculars(),
     getAllGalleryItems(),
     getFacilitiesGrouped(),
+    getDocumentSlotWithMedia('tata-tertib'),
   ]);
 
   return {
@@ -63,7 +62,20 @@ export async function assembleFacilities(): Promise<FacilitiesPageConfig> {
       filterLabels: galeriMeta.filterLabels,
       items: gallery,
     },
-    tatib,
+    tatib: {
+      meta: tatib.meta,
+      accordions: tatib.accordions,
+      documentSlot: tatibSlot
+        ? { id: tatibSlot.id, media: tatibSlot.media ? {
+            id: tatibSlot.media.id,
+            kind: tatibSlot.media.kind,
+            publicId: tatibSlot.media.publicId,
+            filename: tatibSlot.media.filename,
+            sizeBytes: tatibSlot.media.sizeBytes,
+            alt: tatibSlot.media.alt,
+          } : null }
+        : null,
+    },
     ctaFinal,
   };
 }

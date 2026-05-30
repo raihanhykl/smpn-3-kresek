@@ -4,10 +4,13 @@ import { Container } from '@components/atoms/Container';
 import { SectionHeading } from '@components/atoms/SectionHeading';
 import { AccordionItem } from '@components/molecules/AccordionItem';
 import { useAccordion } from '@lib/hooks/useAccordion';
+import { cldUrl } from '@/lib/media/cldUrl';
 import type { FacilitiesPageConfig } from '@config/types';
 
 export function TatibSection({ data }: { data: FacilitiesPageConfig['tatib'] }) {
   const acc = useAccordion('single');
+  // Phase 3: hide download CTA when no PDF is linked.
+  const media = data.documentSlot?.media ?? null;
   return (
     <section className="bg-white py-24">
       <Container>
@@ -26,15 +29,17 @@ export function TatibSection({ data }: { data: FacilitiesPageConfig['tatib'] }) 
             </AccordionItem>
           ))}
         </div>
-        <div className="mt-10 text-center">
-          <a
-            href={data.downloadHref}
-            download
-            className="inline-flex items-center gap-2 rounded-sm bg-primary px-6 py-3 font-heading text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            {data.downloadLabel}
-          </a>
-        </div>
+        {media ? (
+          <div className="mt-10 text-center">
+            <a
+              href={cldUrl(media.publicId, 'pdf')}
+              download
+              className="inline-flex items-center gap-2 rounded-sm bg-primary px-6 py-3 font-heading text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              ⬇ Unduh Buku Tata Tertib Lengkap (PDF)
+            </a>
+          </div>
+        ) : null}
       </Container>
     </section>
   );

@@ -1,6 +1,7 @@
 // See header note in assemblers/home.ts about Phase 1 type-cast safety.
 import { getPageSections } from '../repositories/page-section-repo';
 import { getSubjectGroupsByGrade } from '../repositories/subject-repo';
+import { getDocumentSlotWithMedia } from '../repositories/document-slot-repo';
 import type {
   AcademicPageConfig, PageHeaderConfig, KurikulumConfig,
   ScheduleCard, MethodCard, AssessmentCard, CalendarEvent,
@@ -11,17 +12,17 @@ type MapelMetaSection = { meta: SectionMeta };
 type JadwalSection = { meta: SectionMeta; cards: ScheduleCard[]; note: string };
 type MetodeSection = { meta: SectionMeta; cards: MethodCard[] };
 type PenilaianSection = { meta: SectionMeta; intro: string; cards: AssessmentCard[] };
-type KalenderMetaSection = {
-  meta: SectionMeta; events: CalendarEvent[];
-  downloadLabel: string; downloadHref: string;
-};
+// Phase 3: kalenderMeta no longer carries downloadLabel/downloadHref. The
+// download link is sourced from the DocumentSlot at assembler runtime.
+type KalenderMetaSection = { meta: SectionMeta; events: CalendarEvent[] };
 
 export async function assembleAcademic(): Promise<AcademicPageConfig> {
-  const [sections, g7, g8, g9] = await Promise.all([
+  const [sections, g7, g8, g9, documentSlot] = await Promise.all([
     getPageSections('akademik'),
     getSubjectGroupsByGrade(7),
     getSubjectGroupsByGrade(8),
     getSubjectGroupsByGrade(9),
+    getDocumentSlotWithMedia('kalender-akademik'),
   ]);
 
   const pageHeader = sections.pageHeader as PageHeaderConfig;
@@ -50,8 +51,16 @@ export async function assembleAcademic(): Promise<AcademicPageConfig> {
     kalender: {
       meta: kalenderMeta.meta,
       events: kalenderMeta.events,
-      downloadLabel: kalenderMeta.downloadLabel,
-      downloadHref: kalenderMeta.downloadHref,
+      documentSlot: documentSlot
+        ? { id: documentSlot.id, media: documentSlot.media ? {
+            id: documentSlot.media.id,
+            kind: documentSlot.media.kind,
+            publicId: documentSlot.media.publicId,
+            filename: documentSlot.media.filename,
+            sizeBytes: documentSlot.media.sizeBytes,
+            alt: documentSlot.media.alt,
+          } : null }
+        : null,
     },
     ctaFinal,
   };

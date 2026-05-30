@@ -172,8 +172,10 @@ export const akademikPageConfig: AcademicPageConfig = {
       { id: 'c8', date: 'Mei–Jun 2026', title: 'PAT & Pelepasan Kelas 9', type: 'acara', typeLabel: 'Acara', sub: 'Penilaian Akhir Tahun, pelepasan siswa kelas 9, dan pembagian rapor' },
       { id: 'c9', date: 'Jun–Jul 2026', title: 'Libur Akhir Tahun Ajaran', type: 'libur', typeLabel: 'Libur', sub: 'Libur kenaikan kelas dan persiapan tahun ajaran baru' },
     ],
-    downloadLabel: '⬇ Unduh Kalender Akademik (PDF)',
-    downloadHref: '/docs/kalender-akademik.pdf',
+    // Phase 3: download is sourced from DocumentSlot 'kalender-akademik' at
+    // assembler runtime via getDocumentSlotWithMedia. Static config holds null
+    // so the static-mode build still type-checks; the assembler overwrites it.
+    documentSlot: null,
   },
   ctaFinal: {
     title: 'Ingin Tahu Lebih Banyak?',

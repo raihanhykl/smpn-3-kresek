@@ -1,9 +1,13 @@
 import { Container } from '@components/atoms/Container';
 import { SectionHeading } from '@components/atoms/SectionHeading';
 import { CalendarEventRow } from '@components/molecules/CalendarEvent';
+import { cldUrl } from '@/lib/media/cldUrl';
 import type { AcademicPageConfig } from '@config/types';
 
 export function KalenderSection({ data }: { data: AcademicPageConfig['kalender'] }) {
+  // Phase 3: hide download CTA entirely when no PDF is linked (graceful
+  // fallback for empty DocumentSlot).
+  const media = data.documentSlot?.media ?? null;
   return (
     <section className="bg-neutral-50 py-24">
       <Container>
@@ -13,15 +17,17 @@ export function KalenderSection({ data }: { data: AcademicPageConfig['kalender']
             <CalendarEventRow key={e.id} data={e} />
           ))}
         </div>
-        <div className="mt-10 text-center">
-          <a
-            href={data.downloadHref}
-            download
-            className="inline-flex items-center gap-2 rounded-sm bg-primary px-6 py-3 font-heading text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            {data.downloadLabel}
-          </a>
-        </div>
+        {media ? (
+          <div className="mt-10 text-center">
+            <a
+              href={cldUrl(media.publicId, 'pdf')}
+              download
+              className="inline-flex items-center gap-2 rounded-sm bg-primary px-6 py-3 font-heading text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              ⬇ Unduh Kalender Akademik (PDF)
+            </a>
+          </div>
+        ) : null}
       </Container>
     </section>
   );

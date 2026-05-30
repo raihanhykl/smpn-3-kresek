@@ -3,6 +3,20 @@
  * Discriminated unions are used so future Prisma models can map 1:1.
  */
 
+// ─── Document slot (Phase 3) ───
+// Public-side projection of a DocumentSlot + its linked MediaAsset (when set).
+// The assembler populates this from getDocumentSlotWithMedia; public sections
+// hide their download button when `media` is null.
+export interface DocumentSlotMedia {
+  id: string;
+  kind: 'image' | 'pdf';
+  publicId: string;
+  filename: string;
+  sizeBytes: number;
+  alt: string | null;
+}
+export type DocumentSlotPublic = { id: string; media: DocumentSlotMedia | null } | null;
+
 // ─── Shared primitives ───
 
 export interface CtaLink {
@@ -387,7 +401,7 @@ export interface AcademicPageConfig {
   jadwal: { meta: SectionMeta; cards: ScheduleCard[]; note: string };
   metode: { meta: SectionMeta; cards: MethodCard[] };
   penilaian: { meta: SectionMeta; intro: string; cards: AssessmentCard[] };
-  kalender: { meta: SectionMeta; events: CalendarEvent[]; downloadLabel: string; downloadHref: string };
+  kalender: { meta: SectionMeta; events: CalendarEvent[]; documentSlot: DocumentSlotPublic };
   ctaFinal: CtaFinal;
 }
 
@@ -444,7 +458,7 @@ export interface FacilitiesPageConfig {
     filterLabels: { all: string; akademik: string; ekskul: string; acara: string; fasilitas: string };
     items: GalleryItem[];
   };
-  tatib: { meta: SectionMeta; accordions: AccordionContent[]; downloadLabel: string; downloadHref: string };
+  tatib: { meta: SectionMeta; accordions: AccordionContent[]; documentSlot: DocumentSlotPublic };
   ctaFinal: CtaFinal;
 }
 
