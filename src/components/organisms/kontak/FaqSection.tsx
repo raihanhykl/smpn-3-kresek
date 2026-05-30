@@ -18,7 +18,6 @@ export function FaqSection({ data }: { data: FaqConfig }) {
 
   const tabs: { value: FilterValue; label: string }[] = [
     { value: 'all', label: data.filterLabels.all },
-    { value: 'ppdb', label: data.filterLabels.ppdb },
     { value: 'akademik', label: data.filterLabels.akademik },
     { value: 'administrasi', label: data.filterLabels.administrasi },
     { value: 'lainnya', label: data.filterLabels.lainnya },

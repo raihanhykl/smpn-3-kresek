@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const faqCategorySchema = z.enum(['ppdb', 'akademik', 'administrasi', 'lainnya']);
+export const faqCategorySchema = z.enum(['akademik', 'administrasi', 'lainnya']);
 
 export const faqSchema = z.object({
   id: z.string().min(1),

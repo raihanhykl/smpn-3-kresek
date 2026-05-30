@@ -59,7 +59,7 @@ export const kontakPageConfig: ContactPageConfig = {
     meta: {
       eyebrow: 'LOKASI',
       title: 'Temukan Kami di Sini',
-      subtitle: 'Kunjungi sekolah kami untuk konsultasi, informasi PPDB, dan kunjungan langsung',
+      subtitle: 'Kunjungi sekolah kami untuk konsultasi, kunjungan langsung, atau kerja sama',
     },
     placeholderText:
       '🗺️ Google Maps · SMPN 3 Kresek — Jl. Raya Kresek No. 15, Tangerang, Banten · Embed iframe Google Maps dapat ditambahkan di sini setelah data lokasi resmi tersedia',
@@ -70,7 +70,7 @@ export const kontakPageConfig: ContactPageConfig = {
     eyebrow: 'FORM KONTAK',
     title: 'Kirim Pesan kepada Kami',
     intro:
-      'Punya pertanyaan tentang sekolah, PPDB, atau ingin bekerja sama? Silakan isi form di samping dan pesan Anda akan langsung diteruskan ke WhatsApp atau Email sekolah kami.',
+      'Punya pertanyaan tentang sekolah, kunjungan, atau ingin bekerja sama? Silakan isi form di samping dan pesan Anda akan langsung diteruskan ke WhatsApp atau Email sekolah kami.',
     noteIcon: '⏱️',
     noteText:
       'Respon biasanya dalam 1×24 jam pada hari dan jam kerja. Untuk keperluan mendesak, silakan hubungi kami langsung melalui telepon.',
@@ -84,7 +84,6 @@ export const kontakPageConfig: ContactPageConfig = {
         required: true,
         errorMessage: 'Subjek wajib dipilih',
         options: [
-          'PPDB (Penerimaan Peserta Didik Baru)',
           'Informasi Akademik',
           'Kerjasama / Kemitraan',
           'Pengaduan',
@@ -119,11 +118,8 @@ export const kontakPageConfig: ContactPageConfig = {
       subtitle: 'Temukan jawaban cepat untuk pertanyaan umum seputar SMPN 3 Kresek',
     },
     searchPlaceholder: 'Cari pertanyaan...',
-    filterLabels: { all: 'Semua', ppdb: 'PPDB', akademik: 'Akademik', administrasi: 'Administrasi', lainnya: 'Lainnya' },
+    filterLabels: { all: 'Semua', akademik: 'Akademik', administrasi: 'Administrasi', lainnya: 'Lainnya' },
     items: [
-      { id: 'q1', category: 'ppdb', question: 'Bagaimana cara mendaftar di SMPN 3 Kresek?', answer: 'Pendaftaran dilakukan melalui sistem PPDB Online Kabupaten Tangerang yang dibuka setiap awal tahun ajaran baru (sekitar bulan Juni–Juli). Calon siswa wajib memiliki ijazah SD/MI atau surat keterangan lulus, akta kelahiran, dan kartu keluarga. Hubungi tata usaha sekolah untuk informasi lengkap.' },
-      { id: 'q2', category: 'ppdb', question: 'Berapa biaya pendidikan di SMPN 3 Kresek?', answer: 'SMPN 3 Kresek adalah sekolah negeri yang tunduk pada peraturan pemerintah. Biaya pendidikan dasar tidak dipungut (gratis) sesuai program Wajib Belajar 9 Tahun dan Program Indonesia Pintar (PIP). Beberapa kegiatan tertentu mungkin memerlukan kontribusi sukarela yang transparan dan sesuai musyawarah komite sekolah.' },
-      { id: 'q3', category: 'ppdb', question: 'Apa saja syarat penerimaan siswa baru (PPDB)?', answer: 'Syarat PPDB meliputi: (1) Ijazah atau Surat Keterangan Lulus SD/MI, (2) Akta kelahiran asli, (3) Kartu Keluarga, (4) Foto terbaru 3×4 (2 lembar), (5) Sertifikat prestasi (jika ada, untuk jalur prestasi). Usia maksimal 15 tahun pada tanggal 1 Juli tahun pendaftaran. Persyaratan dapat berubah sesuai kebijakan dinas pendidikan setempat.' },
       { id: 'q4', category: 'akademik', question: 'Apakah ada program beasiswa untuk siswa berprestasi atau kurang mampu?', answer: 'Ya, SMPN 3 Kresek memfasilitasi beberapa program bantuan: (1) Program Indonesia Pintar (PIP) untuk siswa dari keluarga kurang mampu, (2) Beasiswa prestasi dari Dinas Pendidikan Kabupaten Tangerang, (3) Bantuan dari Komite Sekolah untuk siswa yang membutuhkan. Hubungi wali kelas atau BK untuk informasi pengajuan.' },
       { id: 'q5', category: 'administrasi', question: 'Bagaimana cara meminta surat keterangan atau legalisir ijazah?', answer: 'Pengajuan surat keterangan dan legalisir dapat dilakukan langsung ke Tata Usaha sekolah pada jam kerja (Senin–Jumat, 07.00–14.00 WIB). Bawa dokumen asli dan fotokopi yang diperlukan. Proses biasanya membutuhkan 1–3 hari kerja. Untuk keperluan mendesak, hubungi TU terlebih dahulu melalui telepon.' },
       { id: 'q6', category: 'akademik', question: 'Bagaimana cara berkonsultasi dengan guru BK atau wali kelas?', answer: 'Orang tua/wali dapat menghubungi guru BK atau wali kelas melalui: (1) Langsung ke sekolah pada jam kerja, (2) Melalui buku penghubung siswa, (3) Menghubungi nomor sekolah dan meminta disambungkan, (4) Melalui aplikasi komunikasi sekolah (jika tersedia). Konsultasi dapat diagendakan sebelumnya untuk memastikan ketersediaan guru.' },
@@ -136,7 +132,7 @@ export const kontakPageConfig: ContactPageConfig = {
   },
   ctaFinal: {
     title: 'Siap untuk Bergabung?',
-    subtitle: 'Hubungi kami sekarang untuk informasi PPDB, kunjungan sekolah, atau pertanyaan lainnya.',
+    subtitle: 'Hubungi kami sekarang untuk informasi sekolah, kunjungan, atau pertanyaan lainnya.',
     primary: { label: '💬 Chat WhatsApp Sekarang', href: 'https://wa.me/6221592212345?text=Halo%20SMPN%203%20Kresek%2C%20saya%20ingin%20bertanya%20tentang%20sekolah.' },
     secondary: { label: '📞 Telepon Kami', href: 'tel:+62215922-1234' },
   },

@@ -10,7 +10,6 @@ export const siteConfigSchema = z.object({
     logoMark: z.string().min(1),
   }),
   navigation: z.array(navItemSchema),
-  // CHANGED in Phase 1: ppdbCta removed, replaced with kontakCta.
   kontakCta: z.object({ label: z.string().min(1), href: z.string().min(1) }),
   contact: z.object({
     address: z.string(),

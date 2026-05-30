@@ -184,7 +184,7 @@ export const homePageConfig: HomePageConfig = {
     title: 'Bergabunglah dengan Keluarga Besar SMPN 3 Kresek',
     titleLines: ['Bergabunglah dengan Keluarga Besar', 'SMPN 3 Kresek'],
     subtitle:
-      'Wujudkan masa depan cemerlang bersama kami. Hubungi sekolah untuk informasi PPDB dan kunjungan lebih lanjut.',
+      'Wujudkan masa depan cemerlang bersama kami. Hubungi sekolah untuk informasi sekolah dan kunjungan lebih lanjut.',
     primary: { label: 'Hubungi Kami Sekarang', href: '/kontak' },
     secondary: { label: 'Kunjungi Sekolah', href: '/kontak' },
   },

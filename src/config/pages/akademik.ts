@@ -179,7 +179,7 @@ export const akademikPageConfig: AcademicPageConfig = {
   },
   ctaFinal: {
     title: 'Ingin Tahu Lebih Banyak?',
-    subtitle: 'Hubungi kami untuk informasi lebih lanjut tentang program akademik, PPDB, atau kunjungan sekolah.',
+    subtitle: 'Hubungi kami untuk informasi lebih lanjut tentang program akademik atau kunjungan sekolah.',
     primary: { label: 'Hubungi Kami', href: '/kontak' },
     secondary: { label: 'Lihat Fasilitas', href: '/fasilitas', icon: '→' },
   },

@@ -13,7 +13,7 @@ const validValues: ContactFormValues = {
   nama: 'Budi',
   email: 'budi@example.com',
   telp: '081234567890',
-  subjek: 'PPDB',
+  subjek: 'Informasi Akademik',
   pesan: 'Halo',
   agree: true,
 };

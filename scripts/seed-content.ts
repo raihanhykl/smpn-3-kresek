@@ -24,17 +24,9 @@ async function seedPageSections(pageKey: string, sections: Record<string, unknow
 
 async function main() {
   console.log('==> Seed: SiteConfig + Navigation');
-  // Phase 1: ppdbCta → kontakCta (already renamed in src/config/site.ts at Task 4).
-  // Strip any leftover ppdbCta and ensure kontakCta is present.
-  const rawSiteAny = rawSite as typeof rawSite & { ppdbCta?: unknown };
-  const { ppdbCta: _ppdb, navigation: _navFromSite, ...siteRest } = rawSiteAny;
-  void _ppdb;
+  const { navigation: _navFromSite, ...siteRest } = rawSite;
   void _navFromSite;
-  const siteData = {
-    ...siteRest,
-    // Force kontakCta in case any consumer left the old shape; site.ts already has it.
-    kontakCta: (rawSiteAny as { kontakCta?: { label: string; href: string } }).kontakCta ?? { label: 'Kontak', href: '/kontak' },
-  };
+  const siteData = siteRest;
   siteConfigSchema.parse({ ...siteData, navigation: rawNav });
   navigationSchema.parse(rawNav);
 

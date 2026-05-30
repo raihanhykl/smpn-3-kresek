@@ -7,14 +7,10 @@ describe('siteRepo.getSiteConfig', () => {
   beforeAll(async () => {
     await prisma.siteConfig.deleteMany({});
     await prisma.navigation.deleteMany({});
-    const { ppdbCta: _unused, ...rest } = staticSiteConfig as typeof staticSiteConfig & {
-      ppdbCta?: unknown;
-    };
-    void _unused;
     await prisma.siteConfig.create({
       data: {
         id: 'singleton',
-        data: { ...rest, kontakCta: { label: 'Kontak', href: '/kontak' } } as object,
+        data: staticSiteConfig as unknown as object,
       },
     });
     await prisma.navigation.create({

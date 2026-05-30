@@ -18,12 +18,12 @@ import {
 const formSchema = z.object({
   question: z.string().min(1, 'Pertanyaan wajib diisi'),
   answer: z.string().min(1, 'Jawaban wajib diisi'),
-  category: z.enum(['ppdb', 'akademik', 'administrasi', 'lainnya']),
+  category: z.enum(['akademik', 'administrasi', 'lainnya']),
 });
 type FormValues = z.infer<typeof formSchema>;
 
 const CATEGORY_LABEL: Record<Faq['category'], string> = {
-  ppdb: 'PPDB', akademik: 'Akademik', administrasi: 'Administrasi', lainnya: 'Lainnya',
+  akademik: 'Akademik', administrasi: 'Administrasi', lainnya: 'Lainnya',
 };
 
 export function FaqManager({ initialFaqs }: { initialFaqs: Faq[] }) {
@@ -41,7 +41,7 @@ export function FaqManager({ initialFaqs }: { initialFaqs: Faq[] }) {
   function openCreate() {
     setEditing(null);
     setFormError(null);
-    reset({ question: '', answer: '', category: 'ppdb' });
+    reset({ question: '', answer: '', category: 'akademik' });
     setDrawerOpen(true);
   }
 
@@ -131,7 +131,6 @@ export function FaqManager({ initialFaqs }: { initialFaqs: Faq[] }) {
           </FormField>
           <FormField label="Kategori" htmlFor="f-category" error={errors.category?.message}>
             <select id="f-category" className={inputClass} {...register('category')}>
-              <option value="ppdb">PPDB</option>
               <option value="akademik">Akademik</option>
               <option value="administrasi">Administrasi</option>
               <option value="lainnya">Lainnya</option>

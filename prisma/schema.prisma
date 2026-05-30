@@ -159,7 +159,7 @@ model Faq {
   id        String   @id @default(cuid())
   question  String
   answer    String
-  category  String   // "ppdb" | "akademik" | "administrasi" | "lainnya"
+  category  String   // "akademik" | "administrasi" | "lainnya"
   order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

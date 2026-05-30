@@ -15,9 +15,9 @@ describe('buildMailtoUrl', () => {
       body: '',
       subjectTemplate: '[{{subjek}}] dari {{nama}}',
       bodyTemplate: 'Nama: {{nama}}\nEmail: {{email}}',
-      fields: { subjek: 'PPDB', nama: 'Budi', email: 'budi@test.com' },
+      fields: { subjek: 'Informasi Akademik', nama: 'Budi', email: 'budi@test.com' },
     });
-    expect(url).toContain('subject=' + encodeURIComponent('[PPDB] dari Budi'));
+    expect(url).toContain('subject=' + encodeURIComponent('[Informasi Akademik] dari Budi'));
     expect(url).toContain('body=' + encodeURIComponent('Nama: Budi\nEmail: budi@test.com'));
   });
 

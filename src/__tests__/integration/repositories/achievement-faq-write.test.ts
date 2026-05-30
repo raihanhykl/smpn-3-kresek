@@ -33,7 +33,7 @@ describe('achievement + faq write repositories', () => {
   });
 
   it('createFaq + update + delete roundtrip', async () => {
-    const f = await createFaq({ question: 'Q?', answer: 'A.', category: 'ppdb' });
+    const f = await createFaq({ question: 'Q?', answer: 'A.', category: 'akademik' });
     expect(f.id).toBeTruthy();
     const u = await updateFaq(f.id, { ...f, answer: 'Updated.' });
     expect(u.answer).toBe('Updated.');

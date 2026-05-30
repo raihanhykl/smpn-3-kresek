@@ -60,7 +60,7 @@ describe('entity Zod schemas', () => {
 
   it('faqSchema accepts valid input', () => {
     expect(faqSchema.safeParse({
-      id: 'f1', question: 'Q', answer: 'A', category: 'ppdb',
+      id: 'f1', question: 'Q', answer: 'A', category: 'akademik',
     }).success).toBe(true);
   });
 

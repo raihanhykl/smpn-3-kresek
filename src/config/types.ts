@@ -163,7 +163,7 @@ export interface Extracurricular {
   icon: string;
 }
 
-export type FaqCategory = 'ppdb' | 'akademik' | 'administrasi' | 'lainnya';
+export type FaqCategory = 'akademik' | 'administrasi' | 'lainnya';
 
 export interface Faq {
   id: string;
@@ -493,7 +493,7 @@ export interface ContactFormConfig {
 export interface FaqConfig {
   meta: SectionMeta;
   searchPlaceholder: string;
-  filterLabels: { all: string; ppdb: string; akademik: string; administrasi: string; lainnya: string };
+  filterLabels: { all: string; akademik: string; administrasi: string; lainnya: string };
   items: Faq[];
   noResultsText: string;
   ctaText: string;

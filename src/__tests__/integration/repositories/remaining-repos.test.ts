@@ -25,7 +25,7 @@ describe('remaining entity repositories', () => {
       ],
     });
     await prisma.faq.create({
-      data: { id: 'q1', question: 'Q', answer: 'A', category: 'ppdb', order: 0 },
+      data: { id: 'q1', question: 'Q', answer: 'A', category: 'akademik', order: 0 },
     });
     await prisma.galleryItem.create({
       data: { id: 'g1', caption: 'C', emoji: '📚', gradientFrom: '#000', gradientTo: '#fff', order: 0 },
@@ -69,7 +69,7 @@ describe('remaining entity repositories', () => {
   it('getFaqs returns array', async () => {
     const faqs = await getFaqs();
     expect(faqs).toHaveLength(1);
-    expect(faqs[0]?.category).toBe('ppdb');
+    expect(faqs[0]?.category).toBe('akademik');
   });
 
   it('getAllGalleryItems returns array', async () => {
