@@ -130,21 +130,26 @@ describe('MediaManager', () => {
     expect(screen.queryByRole('button', { name: 'Hapus catatan' })).not.toBeInTheDocument();
   });
 
-  it('Unggah Baru button is disabled when status returns ready=false', async () => {
+  it('shows disabled "Unggah Baru" placeholder when status returns ready=false', async () => {
     setupFetch([], { ready: false });
     render(<MediaManager role="ADMIN" />);
     await waitFor(() => {
       const btn = screen.getByRole('button', { name: 'Unggah Baru' });
       expect(btn).toBeDisabled();
     });
+    // The live upload buttons are not rendered when not ready.
+    expect(screen.queryByRole('button', { name: 'Unggah Foto' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Unggah PDF' })).not.toBeInTheDocument();
   });
 
-  it('Unggah Baru button is enabled when status returns ready=true', async () => {
+  it('shows live "Unggah Foto" and "Unggah PDF" buttons when ready=true', async () => {
     setupFetch([], { ready: true });
     render(<MediaManager role="ADMIN" />);
     await waitFor(() => {
-      const btn = screen.getByRole('button', { name: 'Unggah Baru' });
-      expect(btn).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Unggah Foto' })).not.toBeDisabled();
     });
+    expect(screen.getByRole('button', { name: 'Unggah PDF' })).not.toBeDisabled();
+    // The placeholder is gone.
+    expect(screen.queryByRole('button', { name: 'Unggah Baru' })).not.toBeInTheDocument();
   });
 });

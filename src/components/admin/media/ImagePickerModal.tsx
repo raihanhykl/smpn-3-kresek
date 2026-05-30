@@ -1,16 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { cldUrl } from '@/lib/media/cldUrl';
 import type { ImagePickerKind, PickedMedia } from './types';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
+import { UploadButton } from './UploadButton';
 
 /**
  * Phase 3 ImagePickerModal — modal grid of MediaAsset rows of the requested
- * kind. Users either pick one or cancel; the parent provider resolves the
- * Promise from useImagePicker().open(...).
- *
- * Upload-new button (Chunk 7 wires the placeholder; Chunk 9 wires real upload).
+ * kind. Users either pick one, upload a new one (Chunk 9), or cancel; the
+ * parent provider resolves the Promise from useImagePicker().open(...).
  */
 
 type ListResponse = { items: PublicMediaAsset[]; nextCursor: string | null };
@@ -24,27 +23,27 @@ export function ImagePickerModal({ kind, onPick }: Props) {
   const [items, setItems] = useState<PublicMediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadReady, setUploadReady] = useState<boolean | null>(null);
+
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    return fetch(`/api/media/list?kind=${kind}&limit=50`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((j: ListResponse) => setItems(j.items))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [kind]);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    fetch(`/api/media/list?kind=${kind}&limit=50`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((j: ListResponse) => {
-        if (cancelled) return;
-        setItems(j.items);
-      })
-      .catch((e: Error) => {
-        if (cancelled) return;
-        setError(e.message);
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
-      });
+    void refresh();
+    fetch('/api/media/status')
+      .then((r) => (r.ok ? r.json() : { ready: false }))
+      .then((j: { ready: boolean }) => { if (!cancelled) setUploadReady(j.ready); })
+      .catch(() => { if (!cancelled) setUploadReady(false); });
     return () => { cancelled = true; };
-  }, [kind]);
+  }, [refresh]);
 
   // Escape closes the modal as cancelled.
   useEffect(() => {
@@ -68,15 +67,23 @@ export function ImagePickerModal({ kind, onPick }: Props) {
           <h2 className="text-lg font-semibold">
             {kind === 'image' ? 'Pilih Foto' : 'Pilih PDF'}
           </h2>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled
-              title="Akan tersedia setelah kredensial Cloudinary dikonfigurasi"
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-400 disabled:cursor-not-allowed"
-            >
-              Unggah Baru
-            </button>
+          <div className="flex items-start gap-2">
+            {uploadReady ? (
+              <UploadButton
+                kind={kind}
+                label={kind === 'image' ? 'Unggah Foto' : 'Unggah PDF'}
+                onUploaded={() => { void refresh(); }}
+              />
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="Akan tersedia setelah kredensial Cloudinary dikonfigurasi"
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-400 disabled:cursor-not-allowed"
+              >
+                Unggah Baru
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onPick(null)}

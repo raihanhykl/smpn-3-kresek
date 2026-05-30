@@ -22,15 +22,37 @@ describe('signCloudinaryUpload (stub gate)', () => {
     expect(a.signature).not.toBe(b.signature);
   });
 
-  it('throws (does NOT silently succeed) when NODE_ENV is not "test"', () => {
+  it('uses the live Cloudinary SDK signer when NODE_ENV is NOT "test" (Chunk 9 wiring)', () => {
+    // Mock the cloudinary module so the live branch is exercised without
+    // depending on a real API_SECRET or network. The jest module cache must
+    // be reset so the live-branch import picks up the mock.
+    jest.resetModules();
+    jest.doMock('cloudinary', () => ({
+      v2: {
+        utils: {
+          api_sign_request: (params: Record<string, unknown>, secret: string) =>
+            `LIVE-${JSON.stringify(params)}-${secret.slice(0, 4)}`,
+        },
+      },
+    }));
     const original = process.env.NODE_ENV;
     Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
     try {
-      expect(() => signCloudinaryUpload({
-        publicId: 'x', folder: 'x', timestamp: 0, resourceType: 'image',
-      })).toThrow(/Cloudinary signer is not wired yet/);
+      const live = require('@/lib/media/cloudinary-sign') as typeof import('@/lib/media/cloudinary-sign');
+      const r = live.signCloudinaryUpload({
+        publicId: 'smpn3kresek/image/live',
+        folder: 'smpn3kresek/image',
+        timestamp: 12345,
+        resourceType: 'image',
+      });
+      expect(r.signature).toContain('LIVE-');
+      expect(r.signature).toContain('"public_id":"smpn3kresek/image/live"');
+      expect(r.signature).toContain('"timestamp":12345');
+      expect(r.apiKey).toBe('test-key'); // CLOUDINARY_API_KEY from jest.setup.ts
     } finally {
       Object.defineProperty(process.env, 'NODE_ENV', { value: original, configurable: true });
+      jest.dontMock('cloudinary');
+      jest.resetModules();
     }
   });
 });

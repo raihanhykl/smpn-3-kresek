@@ -7,6 +7,7 @@ import { cldUrl } from '@/lib/media/cldUrl';
 import { mapActionError } from '@/components/admin/mapActionError';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
+import { UploadButton } from '@/components/admin/media/UploadButton';
 import {
   deleteMediaAction, forceDeleteMediaAction,
 } from '@/app/(admin)/admin/media/_actions/media-actions';
@@ -139,14 +140,35 @@ export function MediaManager({ role }: { role: Role }) {
           <h1 className="font-heading text-2xl font-extrabold text-neutral-900">Media</h1>
           <p className="text-sm text-neutral-600">Pustaka foto dan PDF. Berkas dipakai di seluruh website.</p>
         </div>
-        <button
-          type="button"
-          disabled={!uploadReady}
-          title={uploadReady ? undefined : 'Akan tersedia setelah kredensial Cloudinary dikonfigurasi'}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Unggah Baru
-        </button>
+        {uploadReady ? (
+          <div className="flex gap-2">
+            <UploadButton
+              kind="image"
+              label="Unggah Foto"
+              onUploaded={(m) => {
+                setItems((prev) => [m, ...prev.filter((p) => p.id !== m.id)]);
+                router.refresh();
+              }}
+            />
+            <UploadButton
+              kind="pdf"
+              label="Unggah PDF"
+              onUploaded={(m) => {
+                setItems((prev) => [m, ...prev.filter((p) => p.id !== m.id)]);
+                router.refresh();
+              }}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title="Akan tersedia setelah kredensial Cloudinary dikonfigurasi"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Unggah Baru
+          </button>
+        )}
       </div>
 
       <div className="mb-3 flex gap-2">
