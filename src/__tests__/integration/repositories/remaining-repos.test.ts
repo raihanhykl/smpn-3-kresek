@@ -28,7 +28,11 @@ describe('remaining entity repositories', () => {
       data: { id: 'q1', question: 'Q', answer: 'A', category: 'akademik', order: 0 },
     });
     await prisma.galleryItem.create({
-      data: { id: 'g1', caption: 'C', emoji: '📚', gradientFrom: '#000', gradientTo: '#fff', order: 0 },
+      data: {
+        id: 'g1', caption: 'C',
+        photoKind: 'gradient', photoEmoji: '📚', photoFrom: '#000', photoTo: '#fff',
+        order: 0,
+      },
     });
     await prisma.facility.createMany({
       data: [

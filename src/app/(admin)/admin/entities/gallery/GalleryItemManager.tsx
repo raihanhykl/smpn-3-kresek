@@ -2,29 +2,34 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { GalleryItem } from '@config/types';
+import type { GalleryItem, Photo } from '@config/types';
+import { photoSchema } from '@/lib/validation/schemas/shared';
 import { EntityTable } from '@/components/admin/EntityTable';
 import { EntityDrawer } from '@/components/admin/EntityDrawer';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
-import { GradientOnlyPhotoPicker, type GradientOnlyPhotoValue } from '@/components/admin/form/GradientOnlyPhotoPicker';
+import { PhotoPicker } from '@/components/admin/form/PhotoPicker';
+import { useImagePicker } from '@/components/admin/media/useImagePicker';
+import { cldUrl } from '@/lib/media/cldUrl';
 import {
   createGalleryItemAction, updateGalleryItemAction, deleteGalleryItemAction, reorderGalleryItemsAction,
 } from '@/app/(admin)/admin/entities/_actions/gallery-actions';
 
 const formSchema = z.object({
   caption: z.string().min(1, 'Caption wajib diisi'),
-  emoji: z.string().min(1, 'Emoji wajib diisi'),
-  from: z.string().min(1),
-  to: z.string().min(1),
+  photo: photoSchema,
   category: z.string(),
   span: z.enum(['normal', 'wide', 'tall']),
 });
 type FormValues = z.infer<typeof formSchema>;
+
+const DEFAULT_GRADIENT_PHOTO: Photo = {
+  kind: 'gradient', from: '#DBEAFE', to: '#93C5FD', emoji: '📷',
+};
 
 export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem[] }) {
   const router = useRouter();
@@ -34,14 +39,15 @@ export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { open: openImagePicker } = useImagePicker();
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } =
+  const { register, handleSubmit, reset, control, formState: { errors } } =
     useForm<FormValues>({ resolver: zodResolver(formSchema) });
 
   function openCreate() {
     setEditing(null);
     setFormError(null);
-    reset({ caption: '', emoji: '📷', from: '#DBEAFE', to: '#93C5FD', category: '', span: 'normal' });
+    reset({ caption: '', photo: DEFAULT_GRADIENT_PHOTO, category: '', span: 'normal' });
     setDrawerOpen(true);
   }
 
@@ -49,16 +55,14 @@ export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem
     setEditing(g);
     setFormError(null);
     reset({
-      caption: g.caption, emoji: g.emoji, from: g.gradientFrom, to: g.gradientTo,
+      caption: g.caption, photo: g.photo,
       category: g.category ?? '', span: g.span ?? 'normal',
     });
     setDrawerOpen(true);
   }
 
   function toInput(v: FormValues) {
-    const base = {
-      caption: v.caption, emoji: v.emoji, gradientFrom: v.from, gradientTo: v.to,
-    };
+    const base = { caption: v.caption, photo: v.photo };
     const category = v.category.trim();
     return {
       ...base,
@@ -101,9 +105,11 @@ export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem
     startTransition(async () => { await reorderGalleryItemsAction(ids); });
   }
 
-  const photoValue: GradientOnlyPhotoValue = {
-    kind: 'gradient', from: watch('from') ?? '#DBEAFE', to: watch('to') ?? '#93C5FD', emoji: watch('emoji') ?? '📷',
-  };
+  const photoErrorMessage =
+    (errors.photo as { message?: string } | undefined)?.message ??
+    (errors.photo as { src?: { message?: string } } | undefined)?.src?.message ??
+    (errors.photo as { alt?: { message?: string } } | undefined)?.alt?.message ??
+    (errors.photo as { emoji?: { message?: string } } | undefined)?.emoji?.message;
 
   return (
     <div>
@@ -119,7 +125,17 @@ export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem
         getId={(g) => g.id}
         getSearchText={(g) => `${g.caption} ${g.category ?? ''}`}
         columns={[
-          { header: 'Caption', cell: (g) => <span className="font-medium">{g.emoji} {g.caption}</span> },
+          { header: 'Caption', cell: (g) => (
+            <span className="flex items-center gap-2 font-medium">
+              {g.photo.kind === 'url' ? (
+                // eslint-disable-next-line @next/next/no-img-element -- admin grid preview
+                <img src={cldUrl(g.photo.src, 'avatar')} alt={g.photo.alt} className="h-8 w-8 rounded object-cover" />
+              ) : (
+                <span>{g.photo.emoji}</span>
+              )}
+              {g.caption}
+            </span>
+          )},
           { header: 'Kategori', cell: (g) => g.category ?? '—' },
         ]}
         onEdit={openEdit}
@@ -141,14 +157,18 @@ export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem
           <FormField label="Caption" htmlFor="g-caption" error={errors.caption?.message}>
             <input id="g-caption" className={inputClass} {...register('caption')} />
           </FormField>
-          <FormField label="Gambar" htmlFor="g-photo" error={errors.emoji?.message}>
-            <GradientOnlyPhotoPicker
-              value={photoValue}
-              onChange={(v) => {
-                setValue('from', v.from);
-                setValue('to', v.to);
-                setValue('emoji', v.emoji);
-              }}
+          <FormField label="Gambar" htmlFor="g-photo" error={photoErrorMessage}>
+            <Controller
+              name="photo"
+              control={control}
+              render={({ field }) => (
+                <PhotoPicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  openImagePicker={openImagePicker}
+                  gradientDefaults={{ from: '#DBEAFE', to: '#93C5FD', emoji: '📷' }}
+                />
+              )}
             />
           </FormField>
           <FormField label="Kategori" htmlFor="g-category" hint="Opsional, mis. akademik / ekskul / fasilitas" error={errors.category?.message}>

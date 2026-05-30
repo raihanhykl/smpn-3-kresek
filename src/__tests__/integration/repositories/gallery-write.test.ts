@@ -3,8 +3,12 @@ import {
   createGalleryItem, updateGalleryItem, deleteGalleryItem, reorderGalleryItems,
 } from '@/lib/data/repositories/gallery-repo';
 
-function input(overrides = {}) {
-  return { caption: 'Upacara', emoji: '🏫', gradientFrom: '#DBEAFE', gradientTo: '#93C5FD', ...overrides };
+function input(overrides: Partial<Parameters<typeof createGalleryItem>[0]> = {}) {
+  return {
+    caption: 'Upacara',
+    photo: { kind: 'gradient' as const, from: '#DBEAFE', to: '#93C5FD', emoji: '🏫' },
+    ...overrides,
+  };
 }
 
 describe('gallery write repository', () => {

@@ -175,9 +175,12 @@ export interface Faq {
 export interface GalleryItem {
   id: string;
   caption: string;
-  emoji: string;
-  gradientFrom: string;
-  gradientTo: string;
+  /**
+   * Phase 3b: discriminated union — `kind: 'gradient'` (legacy seed default)
+   * stores emoji + from/to colours; `kind: 'url'` stores a Cloudinary publicId
+   * + alt text. Public render goes through `cldUrl(photo.src, 'card')`.
+   */
+  photo: Photo;
   category?: string;
   span?: 'wide' | 'tall' | 'normal';
 }

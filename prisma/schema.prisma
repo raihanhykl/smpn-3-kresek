@@ -170,9 +170,15 @@ model Faq {
 model GalleryItem {
   id           String   @id @default(cuid())
   caption      String
-  emoji        String
-  gradientFrom String
-  gradientTo   String
+  // Phase 3b: Photo discriminated union stored as 6 flat columns.
+  // Existing rows backfilled to the gradient branch from the old
+  // emoji/gradientFrom/gradientTo columns (now dropped).
+  photoKind    String   @default("gradient") // "gradient" | "url"
+  photoSrc     String?
+  photoAlt     String?
+  photoFrom    String?
+  photoTo      String?
+  photoEmoji   String?
   category     String?  // optional category tag (e.g. "akademik", "ekskul", "fasilitas")
   span         String?  // "wide" | "tall" | "normal" — visual hint
   order        Int      @default(0)

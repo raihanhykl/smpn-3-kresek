@@ -1,14 +1,26 @@
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db/client';
 import type { GalleryItem } from '@config/types';
+import { photoFromRow, photoToColumns } from './_photo-columns';
 
-function rowToGalleryItem(r: {
-  id: string; caption: string; emoji: string; gradientFrom: string; gradientTo: string;
-  category: string | null; span: string | null;
-}): GalleryItem {
+type GalleryRow = {
+  id: string;
+  caption: string;
+  photoKind: string;
+  photoSrc: string | null;
+  photoAlt: string | null;
+  photoFrom: string | null;
+  photoTo: string | null;
+  photoEmoji: string | null;
+  category: string | null;
+  span: string | null;
+};
+
+function rowToGalleryItem(r: GalleryRow): GalleryItem {
   const item: GalleryItem = {
-    id: r.id, caption: r.caption, emoji: r.emoji,
-    gradientFrom: r.gradientFrom, gradientTo: r.gradientTo,
+    id: r.id,
+    caption: r.caption,
+    photo: photoFromRow('GalleryItem', r.id, r),
   };
   if (r.category) item.category = r.category;
   if (r.span) item.span = r.span as NonNullable<GalleryItem['span']>;
@@ -28,14 +40,17 @@ export const getAllGalleryItems = unstable_cache(loadAllGalleryItems, ['gallery'
   tags: ['gallery'],
 });
 
+export async function getGalleryItemById(id: string): Promise<GalleryItem | null> {
+  const row = await prisma.galleryItem.findUnique({ where: { id } });
+  return row ? rowToGalleryItem(row) : null;
+}
+
 export type GalleryItemInput = Omit<GalleryItem, 'id'>;
 
 function inputToColumns(input: GalleryItemInput) {
   return {
     caption: input.caption,
-    emoji: input.emoji,
-    gradientFrom: input.gradientFrom,
-    gradientTo: input.gradientTo,
+    ...photoToColumns(input.photo),
     category: input.category ?? null,
     span: input.span ?? null,
   };

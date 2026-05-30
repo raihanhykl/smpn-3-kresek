@@ -66,7 +66,8 @@ describe('entity Zod schemas', () => {
 
   it('galleryItemSchema accepts optional span', () => {
     const base = {
-      id: 'g1', caption: 'c', emoji: '🎓', gradientFrom: '#000', gradientTo: '#fff',
+      id: 'g1', caption: 'c',
+      photo: { kind: 'gradient', from: '#000', to: '#fff', emoji: '🎓' },
     };
     expect(galleryItemSchema.safeParse(base).success).toBe(true);
     expect(galleryItemSchema.safeParse({ ...base, span: 'wide' }).success).toBe(true);

@@ -274,16 +274,35 @@ async function main() {
   for (let idx = 0; idx < galleryEntries.length; idx++) {
     const g = galleryEntries[idx]!;
     const order = idx;
+    // Phase 3b: seed maps the static-config Photo (always gradient kind)
+    // onto the new 6-column Photo storage.
+    const photoCols = g.photo.kind === 'url'
+      ? {
+          photoKind: 'url',
+          photoSrc: g.photo.src,
+          photoAlt: g.photo.alt,
+          photoFrom: null,
+          photoTo: null,
+          photoEmoji: null,
+        }
+      : {
+          photoKind: 'gradient',
+          photoSrc: null,
+          photoAlt: null,
+          photoFrom: g.photo.from,
+          photoTo: g.photo.to,
+          photoEmoji: g.photo.emoji,
+        };
     await prisma.galleryItem.upsert({
       where: { id: g.id },
       create: {
-        id: g.id, caption: g.caption, emoji: g.emoji,
-        gradientFrom: g.gradientFrom, gradientTo: g.gradientTo,
+        id: g.id, caption: g.caption,
+        ...photoCols,
         category: g.category ?? null, span: g.span ?? null, order,
       },
       update: {
-        caption: g.caption, emoji: g.emoji,
-        gradientFrom: g.gradientFrom, gradientTo: g.gradientTo,
+        caption: g.caption,
+        ...photoCols,
         category: g.category ?? null, span: g.span ?? null, order,
       },
     });
