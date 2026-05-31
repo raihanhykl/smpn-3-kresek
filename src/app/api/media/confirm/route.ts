@@ -41,7 +41,13 @@ export const POST = withApiAuth(['ADMIN', 'EDITOR'], async (req, user) => {
     return NextResponse.json({ error: 'forbidden_host' }, { status: 400 });
   }
   const limits = MEDIA_LIMITS[body.kind];
-  if (!limits.cldFormats.includes(body.cloudinary.format as never)) {
+  // Cloudinary omits `format` from raw (PDF) upload responses. Fall back to
+  // the trailing extension of the secure_url so the format guard still has a
+  // value to compare against.
+  const format = body.cloudinary.format
+    ?? body.cloudinary.secure_url.split('.').pop()?.toLowerCase()
+    ?? '';
+  if (!limits.cldFormats.includes(format as never)) {
     return NextResponse.json({ error: 'format_mismatch' }, { status: 415 });
   }
   if (body.kind === 'image' && body.cloudinary.resource_type !== 'image') {

@@ -107,10 +107,10 @@ export async function uploadToCloudinary(
         public_id: cld.public_id,
         secure_url: cld.secure_url,
         bytes: cld.bytes,
-        format: cld.format,
         resource_type: cld.resource_type,
         original_filename: cld.original_filename,
         signature: cld.signature,
+        ...(cld.format !== undefined ? { format: cld.format } : {}),
         ...(cld.width !== undefined ? { width: cld.width } : {}),
         ...(cld.height !== undefined ? { height: cld.height } : {}),
       },
@@ -146,7 +146,8 @@ type CloudinaryUploadResponse = {
   public_id: string;
   secure_url: string;
   bytes: number;
-  format: string;
+  // Cloudinary omits `format` from raw (PDF) upload responses.
+  format?: string;
   resource_type: 'image' | 'raw';
   original_filename: string;
   signature: string;

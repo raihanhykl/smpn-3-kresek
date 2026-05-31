@@ -63,7 +63,9 @@ export const confirmRequestSchema = z.object({
     public_id: z.string(),
     secure_url: z.string().url(),
     bytes: z.number().int().positive(),
-    format: z.string(),
+    // Cloudinary omits `format` from PDF (raw) upload responses; the
+    // confirm handler falls back to the trailing extension of secure_url.
+    format: z.string().optional(),
     resource_type: z.enum(['image', 'raw']),
     original_filename: z.string(),
     width: z.number().int().optional(),
