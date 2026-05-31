@@ -30,16 +30,21 @@ export function DocumentSlotManager({ slots }: { slots: SlotSnapshot[] }) {
     setErrors((prev) => ({ ...prev, [slotId]: msg }));
   }
 
-  function attach(slotId: DocumentSlotId) {
+  async function attach(slotId: DocumentSlotId) {
     setError(slotId, null);
+    // The picker open MUST run outside startTransition: openPicker() calls
+    // setOpen() on the layout-level provider, and React 19 defers that update
+    // when scheduled from inside a transition — the modal never mounts and
+    // the awaited promise hangs. Open the picker first, then wrap the
+    // mutation in startTransition for the pending state.
+    const picked = await openImagePicker({ kind: 'pdf' });
+    if (!picked) return;
     startTransition(async () => {
       // The image picker returns the public projection (publicId/url/alt).
       // The DocumentSlot FK is on MediaAsset.id, so we resolve the picker's
       // publicId back to the row's id via /api/media/list (the picker already
       // fetched this list internally — a Phase 5 refactor can plumb id through
       // PickedMedia to avoid this extra round-trip).
-      const picked = await openImagePicker({ kind: 'pdf' });
-      if (!picked) return;
       const list = await fetch(`/api/media/list?kind=pdf&limit=50`).then((res) => res.json());
       const match = (list.items as Array<{ id: string; publicId: string }>).find(
         (m) => m.publicId === picked.publicId,
