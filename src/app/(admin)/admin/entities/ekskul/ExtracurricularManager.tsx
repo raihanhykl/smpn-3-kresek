@@ -2,15 +2,18 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Extracurricular } from '@config/types';
+import type { Extracurricular, Photo } from '@config/types';
+import { photoSchema } from '@/lib/validation/schemas/shared';
 import { EntityTable } from '@/components/admin/EntityTable';
 import { EntityDrawer } from '@/components/admin/EntityDrawer';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
+import { PhotoPicker } from '@/components/admin/form/PhotoPicker';
+import { useImagePicker } from '@/components/admin/media/useImagePicker';
 import {
   createExtracurricularAction, updateExtracurricularAction, deleteExtracurricularAction, reorderExtracurricularsAction,
 } from '@/app/(admin)/admin/entities/_actions/extracurricular-actions';
@@ -22,13 +25,17 @@ const formSchema = z.object({
   pembina: z.string(),
   schedule: z.string(),
   achievement: z.string(),
-  icon: z.string().min(1, 'Ikon wajib diisi'),
+  photo: photoSchema,
 });
 type FormValues = z.infer<typeof formSchema>;
 
 const CATEGORY_LABEL: Record<Extracurricular['category'], string> = {
   wajib: 'Wajib', olahraga: 'Olahraga', seni: 'Seni',
   akademik: 'Akademik', keagamaan: 'Keagamaan', lainnya: 'Lainnya',
+};
+
+const DEFAULT_GRADIENT_PHOTO: Photo = {
+  kind: 'gradient', from: '#F1F5F9', to: '#CBD5E1', emoji: '⭐',
 };
 
 export function ExtracurricularManager({ initialItems }: { initialItems: Extracurricular[] }) {
@@ -39,14 +46,18 @@ export function ExtracurricularManager({ initialItems }: { initialItems: Extracu
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { open: openImagePicker } = useImagePicker();
 
-  const { register, handleSubmit, reset, formState: { errors } } =
+  const { register, handleSubmit, reset, control, formState: { errors } } =
     useForm<FormValues>({ resolver: zodResolver(formSchema) });
 
   function openCreate() {
     setEditing(null);
     setFormError(null);
-    reset({ name: '', category: 'wajib', description: '', pembina: '', schedule: '', achievement: '', icon: '⭐' });
+    reset({
+      name: '', category: 'wajib', description: '', pembina: '', schedule: '',
+      achievement: '', photo: DEFAULT_GRADIENT_PHOTO,
+    });
     setDrawerOpen(true);
   }
 
@@ -55,7 +66,8 @@ export function ExtracurricularManager({ initialItems }: { initialItems: Extracu
     setFormError(null);
     reset({
       name: e.name, category: e.category, description: e.description,
-      pembina: e.pembina, schedule: e.schedule, achievement: e.achievement ?? '', icon: e.icon,
+      pembina: e.pembina, schedule: e.schedule, achievement: e.achievement ?? '',
+      photo: e.photo,
     });
     setDrawerOpen(true);
   }
@@ -63,7 +75,7 @@ export function ExtracurricularManager({ initialItems }: { initialItems: Extracu
   function toInput(v: FormValues) {
     const base = {
       name: v.name, category: v.category, description: v.description,
-      pembina: v.pembina, schedule: v.schedule, icon: v.icon,
+      pembina: v.pembina, schedule: v.schedule, photo: v.photo,
     };
     const trimmed = v.achievement.trim();
     return trimmed ? { ...base, achievement: trimmed } : base;
@@ -102,6 +114,12 @@ export function ExtracurricularManager({ initialItems }: { initialItems: Extracu
   function handleReorder(ids: string[]) {
     startTransition(async () => { await reorderExtracurricularsAction(ids); });
   }
+
+  const photoErrorMessage =
+    (errors.photo as { message?: string } | undefined)?.message ??
+    (errors.photo as { src?: { message?: string } } | undefined)?.src?.message ??
+    (errors.photo as { alt?: { message?: string } } | undefined)?.alt?.message ??
+    (errors.photo as { emoji?: { message?: string } } | undefined)?.emoji?.message;
 
   return (
     <div>
@@ -162,8 +180,19 @@ export function ExtracurricularManager({ initialItems }: { initialItems: Extracu
           <FormField label="Prestasi" htmlFor="e-achievement" hint="Opsional" error={errors.achievement?.message}>
             <input id="e-achievement" className={inputClass} {...register('achievement')} />
           </FormField>
-          <FormField label="Ikon" htmlFor="e-icon" hint="Emoji, mis. ⚽ 🎨 ⛺" error={errors.icon?.message}>
-            <input id="e-icon" className={inputClass} {...register('icon')} />
+          <FormField label="Foto / Ikon" htmlFor="e-photo" error={photoErrorMessage}>
+            <Controller
+              name="photo"
+              control={control}
+              render={({ field }) => (
+                <PhotoPicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  openImagePicker={openImagePicker}
+                  gradientDefaults={{ from: '#F1F5F9', to: '#CBD5E1', emoji: '⭐' }}
+                />
+              )}
+            />
           </FormField>
           {formError ? <p className="text-sm text-red-600" role="alert">{formError}</p> : null}
           <div className="flex justify-end gap-2 pt-2">

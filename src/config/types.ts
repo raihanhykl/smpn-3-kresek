@@ -160,7 +160,11 @@ export interface Extracurricular {
   pembina: string;
   schedule: string;
   achievement?: string;
-  icon: string;
+  /**
+   * Phase 3b: discriminated union — gradient kind keeps the legacy emoji
+   * (now hosted as photo.emoji); url kind supports Cloudinary uploads.
+   */
+  photo: Photo;
 }
 
 export type FaqCategory = 'akademik' | 'administrasi' | 'lainnya';

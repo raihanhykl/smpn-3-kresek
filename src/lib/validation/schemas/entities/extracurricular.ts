@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { photoSchema } from '../shared';
 
 export const ekskulCategorySchema = z.enum([
   'wajib', 'olahraga', 'seni', 'akademik', 'keagamaan', 'lainnya',
@@ -12,7 +13,7 @@ export const extracurricularSchema = z.object({
   pembina: z.string(),
   schedule: z.string(),
   achievement: z.string().optional(),
-  icon: z.string().min(1),
+  photo: photoSchema,
 });
 
 export type ExtracurricularValidated = z.infer<typeof extracurricularSchema>;

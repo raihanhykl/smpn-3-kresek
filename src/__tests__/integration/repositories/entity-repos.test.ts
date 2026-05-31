@@ -28,8 +28,12 @@ describe('entity repositories', () => {
       ],
     });
     await prisma.extracurricular.create({
-      data: { id: 'e1', name: 'Pramuka', category: 'wajib', categoryOrder: 0,
-        description: 'd', pembina: 'X', schedule: 'Sabtu', icon: '⛺', order: 0 },
+      data: {
+        id: 'e1', name: 'Pramuka', category: 'wajib', categoryOrder: 0,
+        description: 'd', pembina: 'X', schedule: 'Sabtu',
+        photoKind: 'gradient', photoEmoji: '⛺', photoFrom: '#F1F5F9', photoTo: '#CBD5E1',
+        order: 0,
+      },
     });
   });
 
@@ -59,8 +63,12 @@ describe('entity repositories', () => {
     const items = await getExtracurriculars();
     expect(items[0]).toMatchObject({
       id: 'e1', name: 'Pramuka', category: 'wajib',
-      pembina: 'X', schedule: 'Sabtu', icon: '⛺',
+      pembina: 'X', schedule: 'Sabtu',
     });
+    expect(items[0]?.photo.kind).toBe('gradient');
+    if (items[0]?.photo.kind === 'gradient') {
+      expect(items[0].photo.emoji).toBe('⛺');
+    }
     // No 'achievement' field in row → should be undefined (not null) per types.ts
     expect(items[0]?.achievement).toBeUndefined();
   });

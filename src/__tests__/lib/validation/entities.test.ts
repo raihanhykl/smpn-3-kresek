@@ -32,7 +32,8 @@ describe('entity Zod schemas', () => {
   it('extracurricularSchema accepts optional achievement', () => {
     const base = {
       id: 'e1', name: 'Pramuka', category: 'wajib', description: 'd',
-      pembina: 'Pak X', schedule: 'Sabtu', icon: '⛺',
+      pembina: 'Pak X', schedule: 'Sabtu',
+      photo: { kind: 'gradient', from: '#F1F5F9', to: '#CBD5E1', emoji: '⛺' },
     };
     expect(extracurricularSchema.safeParse(base).success).toBe(true);
     expect(extracurricularSchema.safeParse({ ...base, achievement: 'Juara 1' }).success).toBe(true);

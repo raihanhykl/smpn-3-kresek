@@ -130,7 +130,15 @@ model Extracurricular {
   pembina       String
   schedule      String
   achievement   String?
-  icon          String
+  // Phase 3b: Photo discriminated union stored as 6 flat columns. Existing
+  // rows backfilled to the gradient branch with a neutral default colour pair
+  // and the old `icon` field hoisted into photoEmoji.
+  photoKind    String   @default("gradient") // "gradient" | "url"
+  photoSrc     String?
+  photoAlt     String?
+  photoFrom    String?
+  photoTo      String?
+  photoEmoji   String?
   order         Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

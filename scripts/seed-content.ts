@@ -201,17 +201,34 @@ async function main() {
       const e = list[i]!;
       const order = i;
       const achievement = e.achievement ?? null;
+      const photoCols = e.photo.kind === 'url'
+        ? {
+            photoKind: 'url',
+            photoSrc: e.photo.src,
+            photoAlt: e.photo.alt,
+            photoFrom: null,
+            photoTo: null,
+            photoEmoji: null,
+          }
+        : {
+            photoKind: 'gradient',
+            photoSrc: null,
+            photoAlt: null,
+            photoFrom: e.photo.from,
+            photoTo: e.photo.to,
+            photoEmoji: e.photo.emoji,
+          };
       await prisma.extracurricular.upsert({
         where: { id: e.id },
         create: {
           id: e.id, name: e.name, category: e.category, categoryOrder: catOrder,
           description: e.description, pembina: e.pembina, schedule: e.schedule,
-          achievement, icon: e.icon, order,
+          achievement, ...photoCols, order,
         },
         update: {
           name: e.name, category: e.category, categoryOrder: catOrder,
           description: e.description, pembina: e.pembina, schedule: e.schedule,
-          achievement, icon: e.icon, order,
+          achievement, ...photoCols, order,
         },
       });
     }

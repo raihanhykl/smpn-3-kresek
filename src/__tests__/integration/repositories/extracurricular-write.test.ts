@@ -6,7 +6,9 @@ import {
 function input(overrides: Partial<Parameters<typeof createExtracurricular>[0]> = {}) {
   return {
     name: 'Pramuka', category: 'wajib' as const, description: 'd',
-    pembina: 'Pak A', schedule: 'Sabtu', icon: '⛺', ...overrides,
+    pembina: 'Pak A', schedule: 'Sabtu',
+    photo: { kind: 'gradient' as const, from: '#F1F5F9', to: '#CBD5E1', emoji: '⛺' },
+    ...overrides,
   };
 }
 
