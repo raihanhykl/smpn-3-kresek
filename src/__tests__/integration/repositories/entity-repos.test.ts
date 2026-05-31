@@ -22,9 +22,13 @@ describe('entity repositories', () => {
     await prisma.achievement.createMany({
       data: [
         { id: 'a1', year: 2023, title: 'X', recipient: 'Y', organizer: 'Z',
-          level: 'nasional', icon: '🏆', order: 1 },
+          level: 'nasional',
+          photoKind: 'gradient', photoFrom: '#E0F2FE', photoTo: '#FFFFFF', photoEmoji: '🏆',
+          order: 1 },
         { id: 'a2', year: 2024, title: 'A', recipient: 'B', organizer: 'C',
-          level: 'kabupaten', icon: '🥇', order: 0 },
+          level: 'kabupaten',
+          photoKind: 'gradient', photoFrom: '#E0F2FE', photoTo: '#FFFFFF', photoEmoji: '🥇',
+          order: 0 },
       ],
     });
     await prisma.extracurricular.create({

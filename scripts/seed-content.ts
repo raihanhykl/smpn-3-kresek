@@ -175,15 +175,32 @@ async function main() {
   for (let idx = 0; idx < achievementEntries.length; idx++) {
     const a = achievementEntries[idx]!;
     const order = idx; // SAME order value passed to both create and update — avoids post-increment trap.
+    const photoCols = a.photo.kind === 'url'
+      ? {
+          photoKind: 'url',
+          photoSrc: a.photo.src,
+          photoAlt: a.photo.alt,
+          photoFrom: null,
+          photoTo: null,
+          photoEmoji: null,
+        }
+      : {
+          photoKind: 'gradient',
+          photoSrc: null,
+          photoAlt: null,
+          photoFrom: a.photo.from,
+          photoTo: a.photo.to,
+          photoEmoji: a.photo.emoji,
+        };
     await prisma.achievement.upsert({
       where: { id: a.id },
       create: {
         id: a.id, year: a.year, title: a.title, recipient: a.recipient,
-        organizer: a.organizer, level: a.level, icon: a.icon, order,
+        organizer: a.organizer, level: a.level, ...photoCols, order,
       },
       update: {
         year: a.year, title: a.title, recipient: a.recipient,
-        organizer: a.organizer, level: a.level, icon: a.icon, order,
+        organizer: a.organizer, level: a.level, ...photoCols, order,
       },
     });
   }

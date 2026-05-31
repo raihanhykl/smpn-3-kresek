@@ -2,15 +2,18 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Achievement } from '@config/types';
+import type { Achievement, Photo } from '@config/types';
+import { photoSchema } from '@/lib/validation/schemas/shared';
 import { EntityTable } from '@/components/admin/EntityTable';
 import { EntityDrawer } from '@/components/admin/EntityDrawer';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
+import { PhotoPicker } from '@/components/admin/form/PhotoPicker';
+import { useImagePicker } from '@/components/admin/media/useImagePicker';
 import {
   createAchievementAction, updateAchievementAction, deleteAchievementAction, reorderAchievementsAction,
 } from '@/app/(admin)/admin/entities/_actions/achievement-actions';
@@ -21,12 +24,16 @@ const formSchema = z.object({
   recipient: z.string().min(1, 'Penerima wajib diisi'),
   organizer: z.string().min(1, 'Penyelenggara wajib diisi'),
   level: z.enum(['kabupaten', 'provinsi', 'nasional', 'internasional']),
-  icon: z.string().min(1, 'Ikon wajib diisi'),
+  photo: photoSchema,
 });
 type FormValues = z.infer<typeof formSchema>;
 
 const LEVEL_LABEL: Record<Achievement['level'], string> = {
   kabupaten: 'Kabupaten/Kota', provinsi: 'Provinsi', nasional: 'Nasional', internasional: 'Internasional',
+};
+
+const DEFAULT_GRADIENT_PHOTO: Photo = {
+  kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🏆',
 };
 
 export function AchievementManager({ initialAchievements }: { initialAchievements: Achievement[] }) {
@@ -37,14 +44,18 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { open: openImagePicker } = useImagePicker();
 
-  const { register, handleSubmit, reset, formState: { errors } } =
+  const { register, handleSubmit, reset, control, formState: { errors } } =
     useForm<FormValues>({ resolver: zodResolver(formSchema) });
 
   function openCreate() {
     setEditing(null);
     setFormError(null);
-    reset({ year: new Date().getFullYear(), title: '', recipient: '', organizer: '', level: 'kabupaten', icon: '🏆' });
+    reset({
+      year: new Date().getFullYear(), title: '', recipient: '', organizer: '',
+      level: 'kabupaten', photo: DEFAULT_GRADIENT_PHOTO,
+    });
     setDrawerOpen(true);
   }
 
@@ -53,7 +64,7 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
     setFormError(null);
     reset({
       year: a.year, title: a.title, recipient: a.recipient,
-      organizer: a.organizer, level: a.level, icon: a.icon,
+      organizer: a.organizer, level: a.level, photo: a.photo,
     });
     setDrawerOpen(true);
   }
@@ -61,7 +72,7 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
   function toInput(v: FormValues) {
     return {
       year: v.year, title: v.title, recipient: v.recipient,
-      organizer: v.organizer, level: v.level, icon: v.icon,
+      organizer: v.organizer, level: v.level, photo: v.photo,
     };
   }
 
@@ -98,6 +109,12 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
   function handleReorder(ids: string[]) {
     startTransition(async () => { await reorderAchievementsAction(ids); });
   }
+
+  const photoErrorMessage =
+    (errors.photo as { message?: string } | undefined)?.message ??
+    (errors.photo as { src?: { message?: string } } | undefined)?.src?.message ??
+    (errors.photo as { alt?: { message?: string } } | undefined)?.alt?.message ??
+    (errors.photo as { emoji?: { message?: string } } | undefined)?.emoji?.message;
 
   return (
     <div>
@@ -154,8 +171,19 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
               <option value="internasional">Internasional</option>
             </select>
           </FormField>
-          <FormField label="Ikon" htmlFor="a-icon" hint="Emoji, mis. 🏆 🥇" error={errors.icon?.message}>
-            <input id="a-icon" className={inputClass} {...register('icon')} />
+          <FormField label="Foto / Ikon" htmlFor="a-photo" hint="Upload sertifikat atau pakai emoji 🏆" error={photoErrorMessage}>
+            <Controller
+              name="photo"
+              control={control}
+              render={({ field }) => (
+                <PhotoPicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  openImagePicker={openImagePicker}
+                  gradientDefaults={{ from: '#E0F2FE', to: '#FFFFFF', emoji: '🏆' }}
+                />
+              )}
+            />
           </FormField>
           {formError ? <p className="text-sm text-red-600" role="alert">{formError}</p> : null}
           <div className="flex justify-end gap-2 pt-2">

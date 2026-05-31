@@ -25,7 +25,8 @@ describe('entity Zod schemas', () => {
   it('achievementSchema accepts valid input', () => {
     expect(achievementSchema.safeParse({
       id: 'a1', year: 2024, title: 'Juara 1', recipient: 'Tim',
-      organizer: 'Kemendikbud', level: 'nasional', icon: '🏆',
+      organizer: 'Kemendikbud', level: 'nasional',
+      photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🏆' },
     }).success).toBe(true);
   });
 

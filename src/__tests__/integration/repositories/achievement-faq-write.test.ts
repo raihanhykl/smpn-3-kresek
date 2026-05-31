@@ -13,9 +13,13 @@ describe('achievement + faq write repositories', () => {
     await prisma.$disconnect();
   });
 
+  const gradient = (emoji = '🏆') => ({
+    kind: 'gradient' as const, from: '#E0F2FE', to: '#FFFFFF', emoji,
+  });
+
   it('createAchievement + update + delete roundtrip', async () => {
     const a = await createAchievement({
-      year: 2024, title: 'Juara 1', recipient: 'Tim', organizer: 'Kemendikbud', level: 'nasional', icon: '🏆',
+      year: 2024, title: 'Juara 1', recipient: 'Tim', organizer: 'Kemendikbud', level: 'nasional', photo: gradient(),
     });
     expect(a.id).toBeTruthy();
     const u = await updateAchievement(a.id, { ...a, title: 'Juara 2' });
@@ -25,8 +29,8 @@ describe('achievement + faq write repositories', () => {
   });
 
   it('reorderAchievements sets order by index', async () => {
-    const a = await createAchievement({ year: 2024, title: 'A', recipient: 'r', organizer: 'o', level: 'nasional', icon: '🏆' });
-    const b = await createAchievement({ year: 2024, title: 'B', recipient: 'r', organizer: 'o', level: 'nasional', icon: '🏆' });
+    const a = await createAchievement({ year: 2024, title: 'A', recipient: 'r', organizer: 'o', level: 'nasional', photo: gradient() });
+    const b = await createAchievement({ year: 2024, title: 'B', recipient: 'r', organizer: 'o', level: 'nasional', photo: gradient() });
     await reorderAchievements([b.id, a.id]);
     const rows = await prisma.achievement.findMany({ orderBy: { order: 'asc' } });
     expect(rows.map((r) => r.id)).toEqual([b.id, a.id]);

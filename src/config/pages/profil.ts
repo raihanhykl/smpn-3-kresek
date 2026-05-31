@@ -159,12 +159,12 @@ export const profilPageConfig: ProfilePageConfig = {
       subtitle: 'Capaian membanggakan dari siswa-siswi dan sekolah kami',
     },
     items: [
-      { id: 'fa1', year: 2024, title: 'Juara 2 Olimpiade Matematika', recipient: 'Ananda Putri R.', organizer: 'Kemendikbudristek', level: 'nasional', icon: '🏆' },
-      { id: 'fa2', year: 2024, title: 'Juara 1 Futsal SMP Se-Banten', recipient: 'Tim Futsal', organizer: 'KONI Banten', level: 'provinsi', icon: '🥇' },
-      { id: 'fa3', year: 2024, title: 'Juara 1 Karya Ilmiah Remaja', recipient: 'Tim KIR', organizer: 'Dinas Pendidikan Tangerang', level: 'kabupaten', icon: '🎖️' },
-      { id: 'fa4', year: 2023, title: 'Juara 2 Baca Puisi Banten', recipient: 'Siti Nur A.', organizer: 'Dinas Kebudayaan Banten', level: 'provinsi', icon: '📖' },
-      { id: 'fa5', year: 2023, title: 'Juara 1 Paduan Suara', recipient: 'Paduan Suara SMPN 3 Kresek', organizer: 'Pemkab Tangerang', level: 'kabupaten', icon: '🎤' },
-      { id: 'fa6', year: 2023, title: 'Juara 2 Bulu Tangkis Putri', recipient: 'Anisa Maharani', organizer: 'KONI Tangerang', level: 'kabupaten', icon: '🏸' },
+      { id: 'fa1', year: 2024, title: 'Juara 2 Olimpiade Matematika', recipient: 'Ananda Putri R.', organizer: 'Kemendikbudristek', level: 'nasional', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🏆' } },
+      { id: 'fa2', year: 2024, title: 'Juara 1 Futsal SMP Se-Banten', recipient: 'Tim Futsal', organizer: 'KONI Banten', level: 'provinsi', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🥇' } },
+      { id: 'fa3', year: 2024, title: 'Juara 1 Karya Ilmiah Remaja', recipient: 'Tim KIR', organizer: 'Dinas Pendidikan Tangerang', level: 'kabupaten', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🎖️' } },
+      { id: 'fa4', year: 2023, title: 'Juara 2 Baca Puisi Banten', recipient: 'Siti Nur A.', organizer: 'Dinas Kebudayaan Banten', level: 'provinsi', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '📖' } },
+      { id: 'fa5', year: 2023, title: 'Juara 1 Paduan Suara', recipient: 'Paduan Suara SMPN 3 Kresek', organizer: 'Pemkab Tangerang', level: 'kabupaten', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🎤' } },
+      { id: 'fa6', year: 2023, title: 'Juara 2 Bulu Tangkis Putri', recipient: 'Anisa Maharani', organizer: 'KONI Tangerang', level: 'kabupaten', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🏸' } },
     ],
   },
   ctaFinal: {

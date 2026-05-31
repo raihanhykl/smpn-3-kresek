@@ -126,7 +126,11 @@ export interface Achievement {
   recipient: string;
   organizer: string;
   level: AchievementLevel;
-  icon: string;
+  /**
+   * Phase 3b: discriminated union — gradient kind keeps the trophy/medal emoji
+   * (now hosted as photo.emoji); url kind supports sertifikat/photo uploads.
+   */
+  photo: Photo;
 }
 
 export type TeacherCategory = 'pimpinan' | 'guru' | 'tu';

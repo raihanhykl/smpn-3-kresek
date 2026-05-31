@@ -127,11 +127,11 @@ export const homePageConfig: HomePageConfig = {
     },
     items: [
       // TODO: replace with real achievements
-      { id: 'a1', year: 2024, title: 'Juara 2 Olimpiade Matematika', recipient: 'Ananda Putri Ramadhani', organizer: 'Kemendikbudristek', level: 'nasional', icon: '🏆' },
-      { id: 'a2', year: 2024, title: 'Juara 1 Lomba Futsal SMP Banten', recipient: 'Tim Futsal SMPN 3 Kresek', organizer: 'KONI Banten', level: 'provinsi', icon: '🥇' },
-      { id: 'a3', year: 2024, title: 'Juara 1 Lomba Karya Ilmiah Remaja', recipient: 'Tim KIR', organizer: 'Dinas Pendidikan Tangerang', level: 'kabupaten', icon: '🎨' },
-      { id: 'a4', year: 2023, title: 'Juara 2 Lomba Baca Puisi Banten', recipient: 'Siti Nur Aisyah', organizer: 'Dinas Kebudayaan Banten', level: 'provinsi', icon: '📖' },
-      { id: 'a5', year: 2023, title: 'Juara 1 Paduan Suara Tingkat SMP', recipient: 'Paduan Suara SMPN 3 Kresek', organizer: 'Pemkab Tangerang', level: 'kabupaten', icon: '🎤' },
+      { id: 'a1', year: 2024, title: 'Juara 2 Olimpiade Matematika', recipient: 'Ananda Putri Ramadhani', organizer: 'Kemendikbudristek', level: 'nasional', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🏆' } },
+      { id: 'a2', year: 2024, title: 'Juara 1 Lomba Futsal SMP Banten', recipient: 'Tim Futsal SMPN 3 Kresek', organizer: 'KONI Banten', level: 'provinsi', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🥇' } },
+      { id: 'a3', year: 2024, title: 'Juara 1 Lomba Karya Ilmiah Remaja', recipient: 'Tim KIR', organizer: 'Dinas Pendidikan Tangerang', level: 'kabupaten', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🎨' } },
+      { id: 'a4', year: 2023, title: 'Juara 2 Lomba Baca Puisi Banten', recipient: 'Siti Nur Aisyah', organizer: 'Dinas Kebudayaan Banten', level: 'provinsi', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '📖' } },
+      { id: 'a5', year: 2023, title: 'Juara 1 Paduan Suara Tingkat SMP', recipient: 'Paduan Suara SMPN 3 Kresek', organizer: 'Pemkab Tangerang', level: 'kabupaten', photo: { kind: 'gradient', from: '#E0F2FE', to: '#FFFFFF', emoji: '🎤' } },
     ],
     ctaLabel: 'Lihat Semua Prestasi',
     ctaHref: '/profil',

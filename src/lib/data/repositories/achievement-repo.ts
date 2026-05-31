@@ -1,14 +1,20 @@
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db/client';
 import type { Achievement } from '@config/types';
+import { photoFromRow, photoToColumns } from './_photo-columns';
 
-function rowToAchievement(r: {
+type AchievementRow = {
   id: string; year: number; title: string; recipient: string;
-  organizer: string; level: string; icon: string;
-}): Achievement {
+  organizer: string; level: string;
+  photoKind: string; photoSrc: string | null; photoAlt: string | null;
+  photoFrom: string | null; photoTo: string | null; photoEmoji: string | null;
+};
+
+function rowToAchievement(r: AchievementRow): Achievement {
   return {
     id: r.id, year: r.year, title: r.title, recipient: r.recipient,
-    organizer: r.organizer, level: r.level as Achievement['level'], icon: r.icon,
+    organizer: r.organizer, level: r.level as Achievement['level'],
+    photo: photoFromRow('Achievement', r.id, r),
   };
 }
 
@@ -24,16 +30,29 @@ export const getAllAchievements = unstable_cache(loadAllAchievements, ['achievem
   tags: ['achievements'],
 });
 
+export async function getAchievementById(id: string): Promise<Achievement | null> {
+  const row = await prisma.achievement.findUnique({ where: { id } });
+  return row ? rowToAchievement(row) : null;
+}
+
 export type AchievementInput = Omit<Achievement, 'id'>;
+
+function inputToColumns(input: AchievementInput) {
+  return {
+    year: input.year,
+    title: input.title,
+    recipient: input.recipient,
+    organizer: input.organizer,
+    level: input.level,
+    ...photoToColumns(input.photo),
+  };
+}
 
 export async function createAchievement(input: AchievementInput): Promise<Achievement> {
   const max = await prisma.achievement.aggregate({ _max: { order: true } });
   const order = (max._max.order ?? -1) + 1;
   const row = await prisma.achievement.create({
-    data: {
-      year: input.year, title: input.title, recipient: input.recipient,
-      organizer: input.organizer, level: input.level, icon: input.icon, order,
-    },
+    data: { ...inputToColumns(input), order },
   });
   return rowToAchievement(row);
 }
@@ -41,10 +60,7 @@ export async function createAchievement(input: AchievementInput): Promise<Achiev
 export async function updateAchievement(id: string, input: AchievementInput): Promise<Achievement> {
   const row = await prisma.achievement.update({
     where: { id },
-    data: {
-      year: input.year, title: input.title, recipient: input.recipient,
-      organizer: input.organizer, level: input.level, icon: input.icon,
-    },
+    data: inputToColumns(input),
   });
   return rowToAchievement(row);
 }
@@ -54,8 +70,6 @@ export async function deleteAchievement(id: string): Promise<void> {
 }
 
 export async function reorderAchievements(orderedIds: string[]): Promise<void> {
-  // Achievement has a single global `order` (not category-grouped), so global index
-  // is correct here. (Contrast with reorderTeachers which is per-category.)
   await prisma.$transaction(
     orderedIds.map((id, index) =>
       prisma.achievement.update({ where: { id }, data: { order: index } }),
