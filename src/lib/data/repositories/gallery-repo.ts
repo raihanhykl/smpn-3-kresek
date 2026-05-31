@@ -36,7 +36,7 @@ async function loadAllGalleryItems(): Promise<GalleryItem[]> {
  * All gallery items, ordered. /fasilitas shows the full list (with filter UI);
  * /home shows the top-N.
  */
-export const getAllGalleryItems = unstable_cache(loadAllGalleryItems, ['gallery', 'all'], {
+export const getAllGalleryItems = unstable_cache(loadAllGalleryItems, ['gallery', 'all', 'v2-photo'], {
   tags: ['gallery'],
 });
 

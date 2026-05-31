@@ -54,7 +54,7 @@ async function loadFacilitiesGrouped(): Promise<FacilitiesGrouped> {
 }
 
 export const getFacilitiesGrouped = unstable_cache(
-  loadFacilitiesGrouped, ['facilities'], { tags: ['facilities'] },
+  loadFacilitiesGrouped, ['facilities', 'v2-photo'], { tags: ['facilities'] },
 );
 
 function rowToAdminFacility(r: FacilityRow): AdminFacility {
@@ -89,7 +89,7 @@ async function loadAllFacilities(): Promise<AdminFacility[]> {
 }
 
 export const getAllFacilities = unstable_cache(
-  loadAllFacilities, ['facilities', 'all'], { tags: ['facilities'] },
+  loadAllFacilities, ['facilities', 'all', 'v2-photo'], { tags: ['facilities'] },
 );
 
 export async function getFacilityById(id: string): Promise<AdminFacility | null> {

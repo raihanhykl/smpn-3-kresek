@@ -26,7 +26,7 @@ async function loadAllAchievements(): Promise<Achievement[]> {
 /**
  * All achievements, ordered. /profil shows the full list; /home shows the top-N.
  */
-export const getAllAchievements = unstable_cache(loadAllAchievements, ['achievements', 'all'], {
+export const getAllAchievements = unstable_cache(loadAllAchievements, ['achievements', 'all', 'v2-photo'], {
   tags: ['achievements'],
 });
 

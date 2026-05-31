@@ -29,7 +29,7 @@ async function loadExtracurriculars(): Promise<Extracurricular[]> {
 }
 
 export const getExtracurriculars = unstable_cache(
-  loadExtracurriculars, ['extracurriculars'], { tags: ['extracurriculars'] },
+  loadExtracurriculars, ['extracurriculars', 'v2-photo'], { tags: ['extracurriculars'] },
 );
 
 export async function getExtracurricularById(id: string): Promise<Extracurricular | null> {
