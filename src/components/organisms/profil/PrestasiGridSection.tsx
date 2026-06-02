@@ -1,7 +1,7 @@
 import { Container } from '@components/atoms/Container';
 import { SectionHeading } from '@components/atoms/SectionHeading';
 import { BadgeLevel } from '@components/atoms/BadgeLevel';
-import { cldUrl } from '@/lib/media/cldUrl';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { ProfilePageConfig } from '@config/types';
 
 export function PrestasiGridSection({ data }: { data: ProfilePageConfig['prestasi'] }) {
@@ -15,7 +15,7 @@ export function PrestasiGridSection({ data }: { data: ProfilePageConfig['prestas
               {a.photo.kind === 'url' ? (
                 // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
                 <img
-                  src={cldUrl(a.photo.src, 'card')}
+                  src={cldUrl(a.photo.src, 'card', cropOf(a.photo))}
                   alt={a.photo.alt}
                   className="aspect-[4/3] w-full object-cover"
                 />

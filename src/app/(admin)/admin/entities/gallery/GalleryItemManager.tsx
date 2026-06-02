@@ -14,7 +14,7 @@ import { mapActionError } from '@/components/admin/mapActionError';
 import { FormField, inputClass } from '@/components/admin/form/FormField';
 import { PhotoPicker } from '@/components/admin/form/PhotoPicker';
 import { useImagePicker } from '@/components/admin/media/useImagePicker';
-import { cldUrl } from '@/lib/media/cldUrl';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import {
   createGalleryItemAction, updateGalleryItemAction, deleteGalleryItemAction, reorderGalleryItemsAction,
 } from '@/app/(admin)/admin/entities/_actions/gallery-actions';
@@ -129,7 +129,7 @@ export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem
             <span className="flex items-center gap-2 font-medium">
               {g.photo.kind === 'url' ? (
                 // eslint-disable-next-line @next/next/no-img-element -- admin grid preview
-                <img src={cldUrl(g.photo.src, 'avatar')} alt={g.photo.alt} className="h-8 w-8 rounded object-cover" />
+                <img src={cldUrl(g.photo.src, 'avatar', cropOf(g.photo))} alt={g.photo.alt} className="h-8 w-8 rounded object-cover" />
               ) : (
                 <span>{g.photo.emoji}</span>
               )}

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { Teacher } from '@config/types';
-import { cldUrl } from '@/lib/media/cldUrl';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 
 export function TeacherCard({ data }: { data: Teacher }) {
   const photoStyle: CSSProperties =
@@ -22,7 +22,7 @@ export function TeacherCard({ data }: { data: Teacher }) {
           // sends the browser to /publicId on our own origin (bug fixed here).
           // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimizes
           <img
-            src={cldUrl(data.photo.src, 'card')}
+            src={cldUrl(data.photo.src, 'card', cropOf(data.photo))}
             alt={data.photo.alt}
             className="h-full w-full object-cover"
           />

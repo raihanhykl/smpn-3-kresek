@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { GalleryItem as GalleryItemData } from '@config/types';
-import { cldUrl } from '@/lib/media/cldUrl';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import { cn } from '@lib/utils/cn';
 
 export function GalleryItem({ data, className }: { data: GalleryItemData; className?: string }) {
@@ -19,7 +19,7 @@ export function GalleryItem({ data, className }: { data: GalleryItemData; classN
       {photo.kind === 'url' ? (
         // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
         <img
-          src={cldUrl(photo.src, 'card')}
+          src={cldUrl(photo.src, 'card', cropOf(photo))}
           alt={photo.alt}
           className="h-full min-h-[180px] w-full object-cover"
         />

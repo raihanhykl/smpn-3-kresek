@@ -6,7 +6,7 @@ import { BadgeLevel } from '@components/atoms/BadgeLevel';
 import { TextLink } from '@components/atoms/TextLink';
 import { useCarousel } from '@lib/hooks/useCarousel';
 import { cn } from '@lib/utils/cn';
-import { cldUrl } from '@/lib/media/cldUrl';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { HomePageConfig } from '@config/types';
 
 export function PrestasiCarouselSection({ data }: { data: HomePageConfig['achievements'] }) {
@@ -26,7 +26,7 @@ export function PrestasiCarouselSection({ data }: { data: HomePageConfig['achiev
                   {a.photo.kind === 'url' ? (
                     // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
                     <img
-                      src={cldUrl(a.photo.src, 'card')}
+                      src={cldUrl(a.photo.src, 'card', cropOf(a.photo))}
                       alt={a.photo.alt}
                       className="aspect-[4/3] w-full object-cover"
                     />

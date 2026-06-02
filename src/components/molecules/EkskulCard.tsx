@@ -1,5 +1,5 @@
 import { Badge } from '@components/atoms/Badge';
-import { cldUrl } from '@/lib/media/cldUrl';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { Extracurricular, EkskulCategory } from '@config/types';
 
 const tones: Record<EkskulCategory, { bg: string; color: string; label: string }> = {
@@ -20,7 +20,7 @@ export function EkskulCard({ data }: { data: Extracurricular }) {
         {photo.kind === 'url' ? (
           // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
           <img
-            src={cldUrl(photo.src, 'card')}
+            src={cldUrl(photo.src, 'card', cropOf(photo))}
             alt={photo.alt}
             className="h-full w-full object-cover"
           />

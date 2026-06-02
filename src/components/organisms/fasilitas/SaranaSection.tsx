@@ -1,6 +1,6 @@
 import { Container } from '@components/atoms/Container';
 import { SectionHeading } from '@components/atoms/SectionHeading';
-import { cldUrl } from '@/lib/media/cldUrl';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { FacilitiesPageConfig } from '@config/types';
 
 export function SaranaSection({ data }: { data: FacilitiesPageConfig['sarana'] }) {
@@ -35,7 +35,7 @@ export function SaranaSection({ data }: { data: FacilitiesPageConfig['sarana'] }
                 {isUrl && f.photo.kind === 'url' ? (
                   // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
                   <img
-                    src={cldUrl(f.photo.src, 'hero')}
+                    src={cldUrl(f.photo.src, 'hero', cropOf(f.photo))}
                     alt={f.photo.alt}
                     className="h-full w-full object-cover"
                   />
