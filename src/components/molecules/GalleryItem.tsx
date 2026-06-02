@@ -12,7 +12,10 @@ export function GalleryItem({ data, className }: { data: GalleryItemData; classN
   return (
     <div
       className={cn(
-        'group relative overflow-hidden rounded-md shadow-sm transition-all hover:shadow-md',
+        // Phase 4: every gallery card is a uniform 4:3 box so the grid is even
+        // and swapping photos is predictable. The crop frame in the admin uses
+        // the same 4:3 ratio, so what the admin sets is exactly what renders.
+        'group relative aspect-[4/3] overflow-hidden rounded-md shadow-sm transition-all hover:shadow-md',
         className,
       )}
     >
@@ -21,11 +24,11 @@ export function GalleryItem({ data, className }: { data: GalleryItemData; classN
         <img
           src={cldUrl(photo.src, 'card', cropOf(photo))}
           alt={photo.alt}
-          className="h-full min-h-[180px] w-full object-cover"
+          className="h-full w-full object-cover"
         />
       ) : (
         <div
-          className="flex h-full min-h-[180px] items-center justify-center text-6xl"
+          className="flex h-full w-full items-center justify-center text-6xl"
           style={{ background: `linear-gradient(135deg, ${photo.from}, ${photo.to})` } satisfies CSSProperties}
         >
           <span aria-hidden>{photo.emoji}</span>

@@ -16,26 +16,22 @@ export function SaranaSection({ data }: { data: FacilitiesPageConfig['sarana'] }
             </div>
           ))}
         </div>
-        <div className="mb-10 grid auto-rows-[220px] grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {data.featured.map((f, idx) => {
-            // Phase 3b: render conditional on photo.kind. Gradient branch keeps
-            // the legacy emoji-on-gradient; url branch renders a Cloudinary
-            // asset via cldUrl (broken-image fallback is browser default —
-            // proper onError fallback deferred to Phase 5).
+        {/* Phase 4: uniform 4:3 cards (mosaic span / first-item 2x2 dropped).
+            The photo sits in a fixed 4:3 box with the title+description as an
+            overlay, so every facility card is the same size and easy to swap. */}
+        <div className="mb-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {data.featured.map((f) => {
             const isUrl = f.photo.kind === 'url';
-            const wrapperClass = `relative overflow-hidden rounded-md shadow-sm transition-shadow hover:shadow-md ${
-              idx === 0 ? 'col-span-2 row-span-2' : f.span === 'wide' ? 'col-span-2' : ''
-            }`;
             return (
               <article
                 key={f.id}
-                className={wrapperClass}
+                className="relative aspect-[4/3] overflow-hidden rounded-md shadow-sm transition-shadow hover:shadow-md"
                 style={isUrl ? undefined : { background: `linear-gradient(135deg, ${f.photo.kind === 'gradient' ? f.photo.from : ''}, ${f.photo.kind === 'gradient' ? f.photo.to : ''})` }}
               >
                 {isUrl && f.photo.kind === 'url' ? (
                   // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
                   <img
-                    src={cldUrl(f.photo.src, 'hero', cropOf(f.photo))}
+                    src={cldUrl(f.photo.src, 'card', cropOf(f.photo))}
                     alt={f.photo.alt}
                     className="h-full w-full object-cover"
                   />
