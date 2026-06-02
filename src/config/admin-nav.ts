@@ -30,6 +30,7 @@ export const adminNav: AdminNavGroup[] = [
       { label: 'Galeri', href: '/admin/entities/gallery', icon: '🖼️', roles: ['ADMIN', 'EDITOR'] },
       { label: 'FAQ', href: '/admin/entities/faqs', icon: '❓', roles: ['ADMIN', 'EDITOR'] },
       { label: 'Dokumen PDF', href: '/admin/entities/documents', icon: '📄', roles: ['ADMIN', 'EDITOR'] },
+      { label: 'Halaman & Foto', href: '/admin/entities/pages', icon: '🖥️', roles: ['ADMIN', 'EDITOR'] },
       { label: 'Media', href: '/admin/media', icon: '📷', roles: ['ADMIN', 'EDITOR'] },
     ],
   },

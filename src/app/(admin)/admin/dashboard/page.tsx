@@ -17,6 +17,7 @@ export default async function DashboardPage() {
         <DashCard href="/admin/entities/teachers" icon="👩‍🏫" title="Guru & Staf" desc="Kelola data guru dan staf" />
         <DashCard href="/admin/entities/achievements" icon="🏆" title="Prestasi" desc="Kelola daftar prestasi sekolah" />
         <DashCard href="/admin/entities/faqs" icon="❓" title="FAQ" desc="Kelola pertanyaan umum" />
+        <DashCard href="/admin/entities/pages" icon="🖥️" title="Halaman & Foto" desc="Ganti foto Hero, Kepala Sekolah, dll" />
       </div>
     </AdminShell>
   );
