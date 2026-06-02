@@ -179,6 +179,7 @@ export function TeacherManager({ initialTeachers }: { initialTeachers: Teacher[]
                   value={field.value}
                   onChange={field.onChange}
                   openImagePicker={openImagePicker}
+                  cropAspect={4 / 5}
                 />
               )}
             />

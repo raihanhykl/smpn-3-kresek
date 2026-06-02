@@ -167,6 +167,7 @@ export function GalleryItemManager({ initialItems }: { initialItems: GalleryItem
                   onChange={field.onChange}
                   openImagePicker={openImagePicker}
                   gradientDefaults={{ from: '#DBEAFE', to: '#93C5FD', emoji: '📷' }}
+                  cropAspect={3 / 2}
                 />
               )}
             />

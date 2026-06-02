@@ -195,6 +195,7 @@ export function FacilityManager({ initialItems }: { initialItems: AdminFacility[
                       onChange={field.onChange}
                       openImagePicker={openImagePicker}
                       gradientDefaults={{ from: '#DBEAFE', to: '#93C5FD', emoji: '🏫' }}
+                      cropAspect={1 / 1}
                     />
                   )}
                 />

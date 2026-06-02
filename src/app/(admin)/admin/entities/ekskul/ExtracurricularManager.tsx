@@ -190,6 +190,7 @@ export function ExtracurricularManager({ initialItems }: { initialItems: Extracu
                   onChange={field.onChange}
                   openImagePicker={openImagePicker}
                   gradientDefaults={{ from: '#F1F5F9', to: '#CBD5E1', emoji: '⭐' }}
+                  cropAspect={16 / 9}
                 />
               )}
             />

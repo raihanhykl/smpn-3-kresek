@@ -181,6 +181,7 @@ export function AchievementManager({ initialAchievements }: { initialAchievement
                   onChange={field.onChange}
                   openImagePicker={openImagePicker}
                   gradientDefaults={{ from: '#E0F2FE', to: '#FFFFFF', emoji: '🏆' }}
+                  cropAspect={4 / 3}
                 />
               )}
             />
