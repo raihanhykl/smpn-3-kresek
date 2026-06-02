@@ -43,15 +43,24 @@ describe('cldUrl', () => {
     expect(CLD_VARIANTS.pdf.transform).toBe('');
   });
 
-  // Phase 4 — crop
-  it('prepends a decimal c_crop segment before the variant transform', () => {
+  // Phase 4 — crop. When a crop is present we scale to the variant's width
+  // (preserving the crop's own aspect ratio) instead of c_fill-ing to the
+  // variant box — otherwise the crop would be re-cropped to the wrong ratio.
+  it('emits c_crop then c_scale-to-width (NOT c_fill) when a crop is present', () => {
     expect(cldUrl('id1', 'card', { x: 0.1, y: 0.05, w: 0.75, h: 0.6 })).toBe(
-      `https://res.cloudinary.com/${CLOUD}/image/upload/c_crop,x_0.1,y_0.05,w_0.75,h_0.6/c_fill,w_640,h_400,f_auto,q_auto/id1`,
+      `https://res.cloudinary.com/${CLOUD}/image/upload/c_crop,x_0.1,y_0.05,w_0.75,h_0.6/c_scale,w_640,f_auto,q_auto/id1`,
+    );
+    expect(cldUrl('id1', 'hero', { x: 0, y: 0, w: 1, h: 1 })).toBe(
+      `https://res.cloudinary.com/${CLOUD}/image/upload/c_crop,x_0,y_0,w_1,h_1/c_scale,w_1600,f_auto,q_auto/id1`,
     );
   });
 
   it('is byte-identical to no-crop when crop is omitted', () => {
     expect(cldUrl('id1', 'card')).toBe(cldUrl('id1', 'card', undefined));
+    // no-crop path keeps the original c_fill transform
+    expect(cldUrl('id1', 'card')).toBe(
+      `https://res.cloudinary.com/${CLOUD}/image/upload/c_fill,w_640,h_400,f_auto,q_auto/id1`,
+    );
   });
 
   it('skips the crop segment when crop fields are partial/invalid', () => {
@@ -59,11 +68,11 @@ describe('cldUrl', () => {
     expect(cldUrl('id1', 'card', { x: 0.1 })).toBe(cldUrl('id1', 'card'));
   });
 
-  it('drops g_face on the avatar variant when a crop is present', () => {
+  it('avatar with a crop scales to width (no g_face, no c_fill box)', () => {
     expect(cldUrl('id1', 'avatar', { x: 0.1, y: 0.1, w: 0.5, h: 0.5 })).toBe(
-      `https://res.cloudinary.com/${CLOUD}/image/upload/c_crop,x_0.1,y_0.1,w_0.5,h_0.5/c_fill,w_200,h_200,f_auto,q_auto/id1`,
+      `https://res.cloudinary.com/${CLOUD}/image/upload/c_crop,x_0.1,y_0.1,w_0.5,h_0.5/c_scale,w_400,f_auto,q_auto/id1`,
     );
-    // no crop → g_face retained (unchanged behaviour)
+    // no crop → g_face + c_fill retained (unchanged behaviour)
     expect(cldUrl('id1', 'avatar')).toBe(
       `https://res.cloudinary.com/${CLOUD}/image/upload/c_fill,g_face,w_200,h_200,f_auto,q_auto/id1`,
     );
