@@ -1,6 +1,7 @@
 import { Container } from '@components/atoms/Container';
 import { RevealOnScroll } from '@components/atoms/RevealOnScroll';
 import { SectionLabel } from '@components/atoms/SectionLabel';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { SambutanConfig } from '@config/types';
 
 export function SambutanSection({ sambutan }: { sambutan: SambutanConfig }) {
@@ -17,16 +18,29 @@ export function SambutanSection({ sambutan }: { sambutan: SambutanConfig }) {
               />
               <div
                 className="relative aspect-[4/5] overflow-hidden rounded-lg shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #1565C0, #1E88E5)' }}
+                style={
+                  sambutan.photo?.kind === 'url'
+                    ? undefined
+                    : { background: 'linear-gradient(135deg, #1565C0, #1E88E5)' }
+                }
               >
-                <div className="flex h-full flex-col items-center justify-center px-6 text-center text-white">
-                  <span className="mb-3 text-7xl" aria-hidden>
-                    {sambutan.photoEmoji}
-                  </span>
-                  <p className="whitespace-pre-line text-sm font-medium text-white/85">
-                    {sambutan.photoPlaceholderText}
-                  </p>
-                </div>
+                {sambutan.photo?.kind === 'url' ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
+                  <img
+                    src={cldUrl(sambutan.photo.src, 'card', cropOf(sambutan.photo))}
+                    alt={sambutan.photo.alt}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center px-6 text-center text-white">
+                    <span className="mb-3 text-7xl" aria-hidden>
+                      {sambutan.photoEmoji}
+                    </span>
+                    <p className="whitespace-pre-line text-sm font-medium text-white/85">
+                      {sambutan.photoPlaceholderText}
+                    </p>
+                  </div>
+                )}
               </div>
               <span
                 aria-hidden

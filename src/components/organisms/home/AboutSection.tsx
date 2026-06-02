@@ -2,6 +2,7 @@ import { Container } from '@components/atoms/Container';
 import { LinkButton } from '@components/atoms/Button';
 import { RevealOnScroll } from '@components/atoms/RevealOnScroll';
 import { SectionLabel } from '@components/atoms/SectionLabel';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { AboutConfig } from '@config/types';
 
 export function AboutSection({ about }: { about: AboutConfig }) {
@@ -39,22 +40,48 @@ export function AboutSection({ about }: { about: AboutConfig }) {
           </RevealOnScroll>
           <RevealOnScroll className="relative">
             <div
-              className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-lg p-8 text-center text-white shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #1565C0, #1E88E5)' }}
+              className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-lg text-center text-white shadow-lg"
+              style={
+                about.photoMain?.kind === 'url'
+                  ? undefined
+                  : { background: 'linear-gradient(135deg, #1565C0, #1E88E5)' }
+              }
             >
-              <div>
-                <span className="mb-3 block text-6xl" aria-hidden>🏫</span>
-                <p className="whitespace-pre-line text-sm font-medium text-white/85">{about.photoMainText}</p>
-              </div>
+              {about.photoMain?.kind === 'url' ? (
+                // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
+                <img
+                  src={cldUrl(about.photoMain.src, 'card', cropOf(about.photoMain))}
+                  alt={about.photoMain.alt}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="p-8">
+                  <span className="mb-3 block text-6xl" aria-hidden>🏫</span>
+                  <p className="whitespace-pre-line text-sm font-medium text-white/85">{about.photoMainText}</p>
+                </div>
+              )}
             </div>
             <div
-              className="absolute -bottom-6 -left-6 flex aspect-square w-32 items-center justify-center overflow-hidden rounded-md p-4 text-center text-white shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #F59E0B, #FBBF24)' }}
+              className="absolute -bottom-6 -left-6 flex aspect-square w-32 items-center justify-center overflow-hidden rounded-md text-center text-white shadow-lg"
+              style={
+                about.photoSub?.kind === 'url'
+                  ? undefined
+                  : { background: 'linear-gradient(135deg, #F59E0B, #FBBF24)' }
+              }
             >
-              <div>
-                <span className="block text-3xl" aria-hidden>👨‍🎓</span>
-                <p className="mt-1 whitespace-pre-line text-[11px] font-medium text-white/85">{about.photoSubText}</p>
-              </div>
+              {about.photoSub?.kind === 'url' ? (
+                // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
+                <img
+                  src={cldUrl(about.photoSub.src, 'card', cropOf(about.photoSub))}
+                  alt={about.photoSub.alt}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="p-4">
+                  <span className="block text-3xl" aria-hidden>👨‍🎓</span>
+                  <p className="mt-1 whitespace-pre-line text-[11px] font-medium text-white/85">{about.photoSubText}</p>
+                </div>
+              )}
             </div>
             <span className="absolute -right-3 -top-3 rounded-full bg-secondary px-4 py-2 text-sm font-bold text-white shadow-md">
               {about.badge}

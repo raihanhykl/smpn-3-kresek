@@ -1,22 +1,30 @@
 import { LinkButton } from '@components/atoms/Button';
 import { Container } from '@components/atoms/Container';
 import { ScrollDot } from '@components/atoms/ScrollDot';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { HeroConfig } from '@config/types';
 
 export function HeroSection({ hero }: { hero: HeroConfig }) {
+  // Phase 5: the hero photo lives in the faded (opacity-25 + mix-blend-overlay)
+  // layer BEHIND the blue gradient — deliberately muted, per design. When the
+  // admin hasn't set one, we render no photo layer (the brand gradient stands
+  // alone) rather than the old stock Unsplash photo of strangers.
+  const heroPhotoBg =
+    hero.photo?.kind === 'url'
+      ? `url('${cldUrl(hero.photo.src, 'hero', cropOf(hero.photo))}') center/cover no-repeat`
+      : null;
   return (
     <section
       className="relative flex min-h-[90vh] items-center overflow-hidden pt-24"
       style={{ background: 'linear-gradient(135deg, #0D47A1 0%, #1565C0 60%, #1E88E5 100%)' }}
     >
-      <div
-        className="absolute inset-0 opacity-25 mix-blend-overlay"
-        style={{
-          background:
-            "url('https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=1600&q=80') center/cover no-repeat",
-        }}
-        aria-hidden
-      />
+      {heroPhotoBg ? (
+        <div
+          className="absolute inset-0 opacity-25 mix-blend-overlay"
+          style={{ background: heroPhotoBg }}
+          aria-hidden
+        />
+      ) : null}
       <div
         className="absolute inset-0"
         style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)' }}

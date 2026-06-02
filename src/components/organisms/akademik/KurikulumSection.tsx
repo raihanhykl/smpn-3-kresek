@@ -1,6 +1,7 @@
 import { Container } from '@components/atoms/Container';
 import { RevealOnScroll } from '@components/atoms/RevealOnScroll';
 import { SectionLabel } from '@components/atoms/SectionLabel';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { KurikulumConfig } from '@config/types';
 
 export function KurikulumSection({ data }: { data: KurikulumConfig }) {
@@ -31,13 +32,26 @@ export function KurikulumSection({ data }: { data: KurikulumConfig }) {
           </RevealOnScroll>
           <RevealOnScroll className="relative">
             <div
-              className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-lg p-8 text-center text-white shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #1565C0, #1E88E5)' }}
+              className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-lg text-center text-white shadow-lg"
+              style={
+                data.photo?.kind === 'url'
+                  ? undefined
+                  : { background: 'linear-gradient(135deg, #1565C0, #1E88E5)' }
+              }
             >
-              <div>
-                <span className="mb-3 block text-7xl" aria-hidden>{data.photoEmoji}</span>
-                <p className="whitespace-pre-line text-sm font-medium text-white/85">{data.photoPlaceholderText}</p>
-              </div>
+              {data.photo?.kind === 'url' ? (
+                // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
+                <img
+                  src={cldUrl(data.photo.src, 'card', cropOf(data.photo))}
+                  alt={data.photo.alt}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="p-8">
+                  <span className="mb-3 block text-7xl" aria-hidden>{data.photoEmoji}</span>
+                  <p className="whitespace-pre-line text-sm font-medium text-white/85">{data.photoPlaceholderText}</p>
+                </div>
+              )}
             </div>
             <div className="absolute -bottom-6 -right-4 rounded-md bg-white p-4 shadow-lg">
               <div className="font-heading text-3xl font-extrabold text-primary">{data.floatStat.value}</div>
