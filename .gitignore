@@ -44,3 +44,6 @@ test-results/
 playwright-report/
 
 /src/generated/prisma
+
+# Claude Code session artifacts
+.claude/scheduled_tasks.lock
