@@ -35,4 +35,41 @@ describe('gallery write repository', () => {
     const rows = await prisma.galleryItem.findMany({ orderBy: { order: 'asc' } });
     expect(rows.map((r) => r.id)).toEqual([b.id, a.id]);
   });
+
+  // Phase 4 — crop region round-trips through _photo-columns automatically.
+  it('persists and reads back a url photo crop region', async () => {
+    const g = await createGalleryItem(input({
+      photo: {
+        kind: 'url', src: 'smpn3kresek/image/abc', alt: 'foto',
+        cropX: 0.1, cropY: 0.2, cropW: 0.5, cropH: 0.4,
+      },
+    }));
+    const row = await prisma.galleryItem.findUnique({ where: { id: g.id } });
+    expect(row?.photoCropX).toBe(0.1);
+    expect(row?.photoCropY).toBe(0.2);
+    expect(row?.photoCropW).toBe(0.5);
+    expect(row?.photoCropH).toBe(0.4);
+    expect(g.photo).toEqual({
+      kind: 'url', src: 'smpn3kresek/image/abc', alt: 'foto',
+      cropX: 0.1, cropY: 0.2, cropW: 0.5, cropH: 0.4,
+    });
+  });
+
+  it('gradient photo stores null crop columns', async () => {
+    const g = await createGalleryItem(input()); // gradient default
+    const row = await prisma.galleryItem.findUnique({ where: { id: g.id } });
+    expect(row?.photoCropX).toBeNull();
+    expect(row?.photoCropY).toBeNull();
+    expect(row?.photoCropW).toBeNull();
+    expect(row?.photoCropH).toBeNull();
+  });
+
+  it('url photo without a crop stores null crop columns', async () => {
+    const g = await createGalleryItem(input({
+      photo: { kind: 'url', src: 'smpn3kresek/image/xyz', alt: 'foto' },
+    }));
+    const row = await prisma.galleryItem.findUnique({ where: { id: g.id } });
+    expect(row?.photoCropX).toBeNull();
+    expect(g.photo).toEqual({ kind: 'url', src: 'smpn3kresek/image/xyz', alt: 'foto' });
+  });
 });
