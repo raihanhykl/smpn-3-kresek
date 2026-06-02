@@ -232,6 +232,8 @@ export interface HeroConfig {
   primary: CtaLink;
   secondary: CtaLink;
   scrollLabel: string;
+  // Phase 5: optional admin-set faded background photo; absent = brand gradient.
+  photo?: Photo | undefined;
 }
 
 export interface StatCard {
@@ -253,6 +255,8 @@ export interface SambutanConfig {
   signatureTitle: string;
   photoPlaceholderText: string;
   photoEmoji: string;
+  // Phase 5: optional admin-set photo; absent = gradient/emoji placeholder.
+  photo?: Photo | undefined;
 }
 
 export interface AboutConfig {
@@ -264,6 +268,9 @@ export interface AboutConfig {
   badge: string;
   photoMainText: string;
   photoSubText: string;
+  // Phase 5: optional admin-set photos; absent = gradient/emoji placeholder.
+  photoMain?: Photo | undefined;
+  photoSub?: Photo | undefined;
 }
 
 export interface ProgramCard {
@@ -349,6 +356,8 @@ export interface ProfilePageConfig {
     photoPlaceholderText: string;
     photoEmoji: string;
     timeline: TimelineItem[];
+    // Phase 5: optional admin-set photo; absent = gradient/emoji placeholder.
+    photo?: Photo | undefined;
   };
   visiMisi: VisiMisiConfig;
   tujuan: { meta: SectionMeta; cards: ObjectiveCard[] };
@@ -421,6 +430,8 @@ export interface KurikulumConfig {
   floatStat: { value: string; label: string };
   photoEmoji: string;
   photoPlaceholderText: string;
+  // Phase 5: optional admin-set photo; absent = gradient/emoji placeholder.
+  photo?: Photo | undefined;
 }
 
 export interface AcademicPageConfig {
