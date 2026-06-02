@@ -96,6 +96,11 @@ model Teacher {
   photoFrom     String?
   photoTo       String?
   photoEmoji    String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX    Float?
+  photoCropY    Float?
+  photoCropW    Float?
+  photoCropH    Float?
   order         Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -119,6 +124,11 @@ model Achievement {
   photoFrom String?
   photoTo   String?
   photoEmoji String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX Float?
+  photoCropY Float?
+  photoCropW Float?
+  photoCropH Float?
   order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -147,6 +157,11 @@ model Extracurricular {
   photoFrom    String?
   photoTo      String?
   photoEmoji   String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX   Float?
+  photoCropY   Float?
+  photoCropW   Float?
+  photoCropH   Float?
   order         Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -195,6 +210,11 @@ model GalleryItem {
   photoFrom    String?
   photoTo      String?
   photoEmoji   String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX   Float?
+  photoCropY   Float?
+  photoCropW   Float?
+  photoCropH   Float?
   category     String?  // optional category tag (e.g. "akademik", "ekskul", "fasilitas")
   span         String?  // "wide" | "tall" | "normal" — visual hint
   order        Int      @default(0)
@@ -219,6 +239,11 @@ model Facility {
   photoFrom    String?
   photoTo      String?
   photoEmoji   String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX   Float?
+  photoCropY   Float?
+  photoCropW   Float?
+  photoCropH   Float?
   span         String?  // only used when kind="featured" — "wide" | "tall" | "normal"
   icon         String?  // only used when kind="mini"
   order        Int      @default(0)

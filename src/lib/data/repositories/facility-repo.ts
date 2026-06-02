@@ -16,6 +16,8 @@ type FacilityRow = {
   id: string; kind: string; name: string; description: string | null;
   photoKind: string | null; photoSrc: string | null; photoAlt: string | null;
   photoFrom: string | null; photoTo: string | null; photoEmoji: string | null;
+  photoCropX: number | null; photoCropY: number | null;
+  photoCropW: number | null; photoCropH: number | null;
   span: string | null; icon: string | null;
 };
 
@@ -37,6 +39,10 @@ async function loadFacilitiesGrouped(): Promise<FacilitiesGrouped> {
           photoFrom: r.photoFrom,
           photoTo: r.photoTo,
           photoEmoji: r.photoEmoji,
+          photoCropX: r.photoCropX,
+          photoCropY: r.photoCropY,
+          photoCropW: r.photoCropW,
+          photoCropH: r.photoCropH,
         }),
       };
       if (r.span) card.span = r.span as NonNullable<FacilityCard['span']>;
@@ -71,6 +77,10 @@ function rowToAdminFacility(r: FacilityRow): AdminFacility {
         photoFrom: r.photoFrom,
         photoTo: r.photoTo,
         photoEmoji: r.photoEmoji,
+        photoCropX: r.photoCropX,
+        photoCropY: r.photoCropY,
+        photoCropW: r.photoCropW,
+        photoCropH: r.photoCropH,
       }),
     };
     if (r.span) card.span = r.span as NonNullable<Extract<AdminFacility, { kind: 'featured' }>['span']>;

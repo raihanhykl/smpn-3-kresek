@@ -19,6 +19,12 @@ export type PhotoRowColumns = {
   photoFrom: string | null;
   photoTo: string | null;
   photoEmoji: string | null;
+  // Phase 4: normalized crop region (0–1). Present together on a cropped url
+  // photo; null otherwise. Gradient rows always null.
+  photoCropX: number | null;
+  photoCropY: number | null;
+  photoCropW: number | null;
+  photoCropH: number | null;
 };
 
 export function photoFromRow(entityKind: string, id: string, row: PhotoRowColumns): Photo {
@@ -26,7 +32,20 @@ export function photoFromRow(entityKind: string, id: string, row: PhotoRowColumn
     if (row.photoSrc === null || row.photoAlt === null) {
       throw new Error(`${entityKind} ${id}: photoKind=url requires photoSrc + photoAlt`);
     }
-    return { kind: 'url', src: row.photoSrc, alt: row.photoAlt };
+    const photo: Photo = { kind: 'url', src: row.photoSrc, alt: row.photoAlt };
+    // Crop is all-or-nothing: only reconstruct when all four are present.
+    if (
+      row.photoCropX !== null &&
+      row.photoCropY !== null &&
+      row.photoCropW !== null &&
+      row.photoCropH !== null
+    ) {
+      photo.cropX = row.photoCropX;
+      photo.cropY = row.photoCropY;
+      photo.cropW = row.photoCropW;
+      photo.cropH = row.photoCropH;
+    }
+    return photo;
   }
   if (row.photoKind === 'gradient') {
     if (row.photoFrom === null || row.photoTo === null || row.photoEmoji === null) {
@@ -46,6 +65,10 @@ export function photoToColumns(photo: Photo): PhotoRowColumns {
       photoFrom: null,
       photoTo: null,
       photoEmoji: null,
+      photoCropX: photo.cropX ?? null,
+      photoCropY: photo.cropY ?? null,
+      photoCropW: photo.cropW ?? null,
+      photoCropH: photo.cropH ?? null,
     };
   }
   return {
@@ -55,5 +78,9 @@ export function photoToColumns(photo: Photo): PhotoRowColumns {
     photoFrom: photo.from,
     photoTo: photo.to,
     photoEmoji: photo.emoji,
+    photoCropX: null,
+    photoCropY: null,
+    photoCropW: null,
+    photoCropH: null,
   };
 }

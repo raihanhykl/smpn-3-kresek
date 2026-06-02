@@ -24,7 +24,9 @@ export function Navbar({ site, activeRoute, transparentOverHero = false }: Navba
       <nav
         className={cn(
           'fixed inset-x-0 top-0 z-50 transition-all duration-300 ease-brand',
-          isTransparent ? 'py-5' : 'border-b border-neutral-200 bg-white/95 py-3 shadow-sm backdrop-blur-md',
+          isTransparent
+            ? 'py-5'
+            : 'border-b border-neutral-200 bg-white/95 py-3 shadow-sm backdrop-blur-md',
         )}
       >
         <Container className="flex items-center gap-8">
@@ -64,7 +66,8 @@ export function Navbar({ site, activeRoute, transparentOverHero = false }: Navba
                       isTransparent
                         ? 'text-white/85 hover:bg-white/15 hover:text-white'
                         : 'text-neutral-700 hover:bg-primary-bg hover:text-primary',
-                      isActive && (isTransparent ? 'font-semibold text-white' : 'font-semibold text-primary'),
+                      isActive &&
+                        (isTransparent ? 'font-semibold text-white' : 'font-semibold text-primary'),
                     )}
                   >
                     {item.label}
@@ -83,12 +86,12 @@ export function Navbar({ site, activeRoute, transparentOverHero = false }: Navba
             })}
           </ul>
 
-          <Link
+          {/* <Link
             href={site.kontakCta.href}
             className="hidden whitespace-nowrap rounded-sm bg-secondary px-5 py-2.5 font-heading text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-[#D97706] hover:shadow-md lg:inline-block"
           >
             {site.kontakCta.label}
-          </Link>
+          </Link> */}
 
           <button
             type="button"
@@ -97,9 +100,24 @@ export function Navbar({ site, activeRoute, transparentOverHero = false }: Navba
             onClick={() => setOpen(true)}
             className="ml-auto flex flex-col gap-1.5 p-2 lg:hidden"
           >
-            <span className={cn('block h-0.5 w-5 rounded', isTransparent ? 'bg-white' : 'bg-neutral-700')} />
-            <span className={cn('block h-0.5 w-5 rounded', isTransparent ? 'bg-white' : 'bg-neutral-700')} />
-            <span className={cn('block h-0.5 w-5 rounded', isTransparent ? 'bg-white' : 'bg-neutral-700')} />
+            <span
+              className={cn(
+                'block h-0.5 w-5 rounded',
+                isTransparent ? 'bg-white' : 'bg-neutral-700',
+              )}
+            />
+            <span
+              className={cn(
+                'block h-0.5 w-5 rounded',
+                isTransparent ? 'bg-white' : 'bg-neutral-700',
+              )}
+            />
+            <span
+              className={cn(
+                'block h-0.5 w-5 rounded',
+                isTransparent ? 'bg-white' : 'bg-neutral-700',
+              )}
+            />
           </button>
         </Container>
       </nav>

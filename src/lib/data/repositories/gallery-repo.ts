@@ -12,6 +12,10 @@ type GalleryRow = {
   photoFrom: string | null;
   photoTo: string | null;
   photoEmoji: string | null;
+  photoCropX: number | null;
+  photoCropY: number | null;
+  photoCropW: number | null;
+  photoCropH: number | null;
   category: string | null;
   span: string | null;
 };

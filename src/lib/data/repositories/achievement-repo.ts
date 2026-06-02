@@ -8,6 +8,8 @@ type AchievementRow = {
   organizer: string; level: string;
   photoKind: string; photoSrc: string | null; photoAlt: string | null;
   photoFrom: string | null; photoTo: string | null; photoEmoji: string | null;
+  photoCropX: number | null; photoCropY: number | null;
+  photoCropW: number | null; photoCropH: number | null;
 };
 
 function rowToAchievement(r: AchievementRow): Achievement {

@@ -9,6 +9,8 @@ type ExtracurricularRow = {
   pembina: string; schedule: string; achievement: string | null;
   photoKind: string; photoSrc: string | null; photoAlt: string | null;
   photoFrom: string | null; photoTo: string | null; photoEmoji: string | null;
+  photoCropX: number | null; photoCropY: number | null;
+  photoCropW: number | null; photoCropH: number | null;
 };
 
 function rowToExtracurricular(r: ExtracurricularRow): Extracurricular {

@@ -8,6 +8,8 @@ function rowToTeacher(row: {
   id: string; name: string; position: string; badge: string; category: string;
   photoKind: string; photoSrc: string | null; photoAlt: string | null;
   photoFrom: string | null; photoTo: string | null; photoEmoji: string | null;
+  photoCropX: number | null; photoCropY: number | null;
+  photoCropW: number | null; photoCropH: number | null;
 }): Teacher {
   return {
     id: row.id,

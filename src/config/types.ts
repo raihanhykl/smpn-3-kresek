@@ -136,7 +136,28 @@ export interface Achievement {
 export type TeacherCategory = 'pimpinan' | 'guru' | 'tu';
 
 export type Photo =
-  | { kind: 'url'; src: string; alt: string }
+  | {
+      kind: 'url';
+      src: string;
+      alt: string;
+      // Phase 4: normalized crop region (0–1 fractions of the source image).
+      // All four present together = a crop; all absent = render uncropped
+      // (legacy/center-fill behaviour). cropW/cropH double as zoom (smaller =
+      // more zoomed in).
+      //
+      // NOTE: this type is a deliberate SUPERSET of what is valid. The real
+      // bounds (0–1 range, ≥0.05 size, all-or-nothing, x+w≤1 / y+h≤1) live in
+      // `photoSchema` (src/lib/validation/schemas/shared.ts) — Zod is the source
+      // of truth. Render-time safety is guaranteed by `cropOf()` in cldUrl.ts,
+      // which only returns a crop when all four are present.
+      //
+      // The `| undefined` is explicit (not just `?`) so the type matches Zod's
+      // `.optional()` inference under exactOptionalPropertyTypes.
+      cropX?: number | undefined;
+      cropY?: number | undefined;
+      cropW?: number | undefined;
+      cropH?: number | undefined;
+    }
   | { kind: 'gradient'; from: string; to: string; emoji: string };
 
 export interface Teacher {

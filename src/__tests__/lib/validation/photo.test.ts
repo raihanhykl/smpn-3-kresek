@@ -57,6 +57,44 @@ describe('photoSchema (Phase 3 publicId semantics)', () => {
         expect(r.error.errors[0]?.message).toMatch(/Alt/i);
       }
     });
+
+    // Phase 4 — crop region
+    it('accepts a url photo with a full crop region', () => {
+      expect(photoSchema.safeParse({
+        kind: 'url', src: 'smpn3kresek/image/abc', alt: 'x',
+        cropX: 0.1, cropY: 0.05, cropW: 0.75, cropH: 0.6,
+      }).success).toBe(true);
+    });
+
+    it('accepts a url photo with no crop (legacy)', () => {
+      expect(photoSchema.safeParse({
+        kind: 'url', src: 'smpn3kresek/image/abc', alt: 'x',
+      }).success).toBe(true);
+    });
+
+    it('rejects crop fractions outside 0–1', () => {
+      expect(photoSchema.safeParse({
+        kind: 'url', src: 'smpn3kresek/image/abc', alt: 'x',
+        cropX: 1.5, cropY: 0.1, cropW: 0.2, cropH: 0.2,
+      }).success).toBe(false);
+      expect(photoSchema.safeParse({
+        kind: 'url', src: 'smpn3kresek/image/abc', alt: 'x',
+        cropX: 0.1, cropY: 0.1, cropW: 0, cropH: 0.2,
+      }).success).toBe(false);
+    });
+
+    it('rejects a PARTIAL crop (all-or-nothing invariant)', () => {
+      expect(photoSchema.safeParse({
+        kind: 'url', src: 'smpn3kresek/image/abc', alt: 'x', cropX: 0.1, cropW: 0.5,
+      }).success).toBe(false);
+    });
+
+    it('rejects an OUT-OF-BOUNDS crop region (x+w or y+h > 1)', () => {
+      expect(photoSchema.safeParse({
+        kind: 'url', src: 'smpn3kresek/image/abc', alt: 'x',
+        cropX: 0.8, cropY: 0.1, cropW: 0.5, cropH: 0.2,
+      }).success).toBe(false);
+    });
   });
 
   describe('gradient branch (unchanged)', () => {
