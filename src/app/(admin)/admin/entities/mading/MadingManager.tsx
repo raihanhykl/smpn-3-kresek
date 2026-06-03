@@ -126,7 +126,7 @@ export function MadingManager({ initialItems }: { initialItems: Mading[] }) {
         ]}
         onEdit={openEdit}
         onDelete={(m) => setDeleting(m)}
-        onReorder={() => { /* no manual reorder — list sorts by date */ }}
+        reorderable={false}
         addButton={
           <button type="button" onClick={openCreate} className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90">
             + Tambah Mading

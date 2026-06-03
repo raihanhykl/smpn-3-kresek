@@ -17,6 +17,7 @@ export type Column<Row> = {
 
 export function EntityTable<Row>({
   rows, getId, getSearchText, columns, onEdit, onDelete, onReorder, addButton,
+  reorderable = true,
 }: {
   rows: Row[];
   getId: (row: Row) => string;
@@ -24,8 +25,14 @@ export function EntityTable<Row>({
   columns: Column<Row>[];
   onEdit: (row: Row) => void;
   onDelete: (row: Row) => void;
-  onReorder: (orderedIds: string[]) => void;
+  // Optional when reorderable=false (no drag handles, no reorder calls).
+  onReorder?: (orderedIds: string[]) => void;
   addButton?: React.ReactNode;
+  // When false, drag handles are hidden and rows cannot be reordered. Use for
+  // entities ordered by an intrinsic key (e.g. Mading sorts by date), where a
+  // drag affordance would be misleading. Defaults to true for all existing
+  // managers.
+  reorderable?: boolean;
 }) {
   const [query, setQuery] = useState('');
   // Local order mirror so drag feels instant; server reorder fires onDragEnd.
@@ -58,7 +65,9 @@ export function EntityTable<Row>({
     return getSearchText(row).toLowerCase().includes(query.trim().toLowerCase());
   });
 
-  const dragDisabled = query.trim().length > 0; // reordering only meaningful on full list
+  // Reordering only meaningful on the full list, and only when the entity is
+  // reorderable at all.
+  const dragDisabled = !reorderable || query.trim().length > 0;
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -67,7 +76,7 @@ export function EntityTable<Row>({
     const newIndex = orderedIds.indexOf(String(over.id));
     const next = arrayMove(orderedIds, oldIndex, newIndex);
     setOrderedIds(next);
-    onReorder(next);
+    onReorder?.(next);
   }
 
   return (
@@ -94,7 +103,7 @@ export function EntityTable<Row>({
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
                   <tr>
-                    <th className="w-8 px-3 py-2" aria-label="Urutkan" />
+                    {reorderable ? <th className="w-8 px-3 py-2" aria-label="Urutkan" /> : null}
                     {columns.map((c) => (
                       <th key={c.header} className="px-3 py-2">{c.header}</th>
                     ))}
@@ -109,6 +118,7 @@ export function EntityTable<Row>({
                         key={id}
                         id={id}
                         dragDisabled={dragDisabled}
+                        reorderable={reorderable}
                         columns={columns}
                         row={row}
                         onEdit={() => onEdit(row)}
@@ -127,7 +137,7 @@ export function EntityTable<Row>({
 }
 
 function SortableRow<Row>({
-  id, row, columns, onEdit, onDelete, dragDisabled,
+  id, row, columns, onEdit, onDelete, dragDisabled, reorderable,
 }: {
   id: string;
   row: Row;
@@ -135,23 +145,26 @@ function SortableRow<Row>({
   onEdit: () => void;
   onDelete: () => void;
   dragDisabled: boolean;
+  reorderable: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: dragDisabled });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
     <tr ref={setNodeRef} style={style} className="border-b border-neutral-100 last:border-0">
-      <td className="px-3 py-2 align-middle">
-        <button
-          type="button"
-          className="cursor-grab text-neutral-400 disabled:cursor-not-allowed disabled:opacity-30"
-          disabled={dragDisabled}
-          aria-label="Seret untuk urutkan"
-          {...attributes}
-          {...listeners}
-        >
-          ⠿
-        </button>
-      </td>
+      {reorderable ? (
+        <td className="px-3 py-2 align-middle">
+          <button
+            type="button"
+            className="cursor-grab text-neutral-400 disabled:cursor-not-allowed disabled:opacity-30"
+            disabled={dragDisabled}
+            aria-label="Seret untuk urutkan"
+            {...attributes}
+            {...listeners}
+          >
+            ⠿
+          </button>
+        </td>
+      ) : null}
       {columns.map((c) => (
         <td key={c.header} className="px-3 py-2 align-middle text-neutral-800">{c.cell(row)}</td>
       ))}
