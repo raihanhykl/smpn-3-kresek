@@ -39,7 +39,7 @@ describe('StaticContentProvider', () => {
   it('returns the typed site config', async () => {
     const site = await provider.getSiteConfig();
     expect(site.brand.name).toBe('SMPN 3 Kresek');
-    expect(site.navigation).toHaveLength(5);
+    expect(site.navigation).toHaveLength(6);
   });
 
   it('returns the home page config with all sections', async () => {

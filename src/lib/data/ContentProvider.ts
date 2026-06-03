@@ -5,6 +5,7 @@ import type {
   AcademicPageConfig,
   FacilitiesPageConfig,
   ContactPageConfig,
+  Mading,
 } from '@config/types';
 
 /**
@@ -24,4 +25,6 @@ export interface ContentProvider {
   getAcademicPage(): Promise<AcademicPageConfig>;
   getFacilitiesPage(): Promise<FacilitiesPageConfig>;
   getContactPage(): Promise<ContactPageConfig>;
+  getMadingList(): Promise<Mading[]>;
+  getMadingById(id: string): Promise<Mading | null>;
 }
