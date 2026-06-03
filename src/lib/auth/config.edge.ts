@@ -6,6 +6,12 @@ import type { NextAuthConfig } from 'next-auth';
  * Used by middleware (Edge runtime cannot import Prisma).
  */
 export const authConfigEdge: NextAuthConfig = {
+  // Behind a reverse proxy (e.g. Hostinger) the app runs on an internal
+  // host/port while AUTH_URL points at the public HTTPS domain. Without
+  // trustHost, auth() tries to fetch its own absolute AUTH_URL from inside the
+  // server and fails ("failed to get redirect response: fetch failed").
+  // trustHost makes NextAuth trust the forwarded host header instead.
+  trustHost: true,
   session: { strategy: 'jwt', maxAge: 7 * 24 * 60 * 60 }, // 7 days
   pages: { signIn: '/admin/login' },
   providers: [], // populated in config.ts (Node side)
