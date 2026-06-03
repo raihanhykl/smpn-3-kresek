@@ -12,6 +12,13 @@ name: Update visual baselines
 
 on:
   workflow_dispatch:
+  # Temporary push trigger so this can run before the workflow is on the default
+  # branch (workflow_dispatch is only API-triggerable from default). Remove the
+  # `push:` block once baselines are committed — keep only workflow_dispatch.
+  push:
+    branches: [phase-0-foundation]
+    paths:
+      - '.github/workflows/update-visual-baselines.yml'
 
 # Allow the job to push the regenerated baselines back to the branch.
 permissions:
