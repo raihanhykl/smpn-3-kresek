@@ -17,7 +17,6 @@ export default async function MadingPage() {
     <PageLayout site={site} activeRoute="/mading">
       <PageHeader
         config={{
-          breadcrumb: [{ label: 'Beranda', href: '/' }, { label: 'Mading' }],
           title: 'Majalah Dinding',
           subtitle: 'Berita & informasi terbaru sekolah.',
         }}

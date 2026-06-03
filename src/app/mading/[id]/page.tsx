@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getContentProvider } from '@lib/data';
 import { PageLayout } from '@components/templates/PageLayout';
@@ -22,27 +23,39 @@ export default async function MadingDetailPage({ params }: { params: Promise<{ i
 
   return (
     <PageLayout site={site} activeRoute="/mading">
-      <article className="bg-white py-16">
+      {/* min-h keeps the footer pinned to the bottom even when a post is short;
+          pt clears the fixed navbar so the content isn't flush against the top. */}
+      <div className="min-h-screen bg-neutral-50 pb-20 pt-28 sm:pt-32">
         <Container className="max-w-3xl">
-          <time className="text-sm font-medium text-neutral-500">{date}</time>
-          <h1 className="mt-2 font-heading text-3xl font-extrabold tracking-tight text-neutral-900 sm:text-4xl">{post.title}</h1>
-          {paragraphs.length > 0 ? (
-            <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-neutral-700">
-              {paragraphs.map((p, i) => <p key={i}>{p}</p>)}
-            </div>
-          ) : null}
-          {post.images.length > 0 ? (
-            <div className="mt-8 space-y-6">
-              {post.images.map((img, i) => (
-                <figure key={`${img.src}-${i}`} className="overflow-hidden rounded-lg bg-neutral-900">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN, native ratio preserved */}
-                  <img src={cldUrl(img.src, 'original')} alt={img.alt} className="mx-auto max-h-[70vh] w-full object-contain" />
-                </figure>
-              ))}
-            </div>
-          ) : null}
+          <Link
+            href="/mading"
+            className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary-dark"
+          >
+            <span aria-hidden>←</span> Kembali ke Mading
+          </Link>
+          <article className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-10">
+            <time className="text-sm font-medium text-neutral-500">{date}</time>
+            <h1 className="mt-2 font-heading text-3xl font-extrabold tracking-tight text-neutral-900 sm:text-4xl">
+              {post.title}
+            </h1>
+            {paragraphs.length > 0 ? (
+              <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-neutral-700">
+                {paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+              </div>
+            ) : null}
+            {post.images.length > 0 ? (
+              <div className="mt-8 space-y-6">
+                {post.images.map((img, i) => (
+                  <figure key={`${img.src}-${i}`} className="overflow-hidden rounded-lg bg-neutral-900">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN, native ratio preserved */}
+                    <img src={cldUrl(img.src, 'original')} alt={img.alt} className="mx-auto max-h-[70vh] w-full object-contain" />
+                  </figure>
+                ))}
+              </div>
+            ) : null}
+          </article>
         </Container>
-      </article>
+      </div>
     </PageLayout>
   );
 }

@@ -18,7 +18,9 @@ export function PageHeader({ config }: { config: PageHeaderConfig }) {
         />
       </div>
       <Container className="relative z-10 pt-32">
-        <BreadcrumbNav items={config.breadcrumb} />
+        {config.breadcrumb && config.breadcrumb.length > 0 ? (
+          <BreadcrumbNav items={config.breadcrumb} />
+        ) : null}
         <h1 className="font-heading text-[clamp(28px,4vw,52px)] font-extrabold leading-tight tracking-tight text-white">
           {config.title}
         </h1>

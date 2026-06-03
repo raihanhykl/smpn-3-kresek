@@ -353,7 +353,8 @@ export interface OrgChartConfig {
 }
 
 export interface PageHeaderConfig {
-  breadcrumb: { label: string; href?: string }[];
+  // Optional: omit to render the header without a breadcrumb trail (e.g. /mading).
+  breadcrumb?: { label: string; href?: string }[] | undefined;
   title: string;
   subtitle: string;
 }

@@ -1,6 +1,6 @@
 import type { PageHeaderConfig } from '@config/types';
 
-export function BreadcrumbNav({ items }: { items: PageHeaderConfig['breadcrumb'] }) {
+export function BreadcrumbNav({ items }: { items: NonNullable<PageHeaderConfig['breadcrumb']> }) {
   return (
     <nav aria-label="Breadcrumb" className="mb-3 flex flex-wrap items-center gap-2 text-sm text-white/60">
       {items.map((item, idx) => {
