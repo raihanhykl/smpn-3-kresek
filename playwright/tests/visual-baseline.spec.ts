@@ -94,6 +94,23 @@ test.describe('public site visual baseline', () => {
       // Then wait until the page stops growing — now a true, scroll-independent
       // settled height (guards against any residual cold-compile reflow too).
       await waitForStableHeight(page);
+      // TEMP DIAGNOSTIC: dump /profil structural counts to pinpoint the 6250 vs
+      // 7679 non-determinism (teacher grid / sections). Remove after root-cause.
+      if (path === '/profil') {
+        const diag = await page.evaluate(() => {
+          const h = document.documentElement.scrollHeight;
+          const tabs = document.querySelectorAll('[role="tab"]').length;
+          // teacher cards: divs holding a teacher name inside the guru grid.
+          const grids = Array.from(document.querySelectorAll('section .grid'));
+          const gridCounts = grids.map((g) => g.children.length);
+          const sections = Array.from(document.querySelectorAll('section')).map(
+            (s) => Math.round((s as HTMLElement).getBoundingClientRect().height),
+          );
+          return { h, tabs, gridCounts, sectionHeights: sections };
+        });
+        // eslint-disable-next-line no-console
+        console.log('VB_DIAG /profil', JSON.stringify(diag));
+      }
       await expect(page).toHaveScreenshot(`${path.replace(/\//g, '_') || '_root'}.png`, {
         fullPage: true,
         // Baselines are generated ON the GitHub `ubuntu-latest` runner (see the
