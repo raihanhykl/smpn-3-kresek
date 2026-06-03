@@ -51,31 +51,31 @@ model AuditLog {
   @@index([target, createdAt])
 }
 
-// ─── Phase 1: Page content (JSONB) ───
-
-model PageSection {
-  id         String   @id @default(cuid())
-  pageKey    String   // "home" | "profil" | "akademik" | "fasilitas" | "kontak"
-  sectionKey String   // e.g. "hero" | "stats" | "sambutan" | ...
-  data       Json     // Zod-validated shape (see src/lib/validation/schemas/page-sections/)
+// ─── Section photos ───
+// All page TEXT/site-config/navigation now lives in src/config/ (read directly by
+// the assemblers) — the former PageSection / SiteConfig / Navigation tables were
+// dropped. The ONLY page-section data that stays DB-backed (admin-editable) is the
+// 6 section PHOTO slots, stored here as the shared 6-flat-column Photo union + crop.
+// A row is created lazily on first save; absent / photoKind=NULL means "unset", and
+// the public render falls back to the config/UI gradient placeholder.
+model SectionPhoto {
+  pageKey    String   // "home" | "profil" | "akademik"
+  sectionKey String   // "hero" | "sambutan" | "about" | "sejarah" | "kurikulum"
+  field      String   // "photo" | "photoMain" | "photoSub"
+  photoKind  String?  // "url" | "gradient" | null (null = unset → config/UI default)
+  photoSrc   String?  @db.VarChar(255)
+  photoAlt   String?  @db.Text
+  photoFrom  String?
+  photoTo    String?
+  photoEmoji String?
+  photoCropX Float?
+  photoCropY Float?
+  photoCropW Float?
+  photoCropH Float?
   updatedAt  DateTime @updatedAt
-  updatedBy  String?  // userId; nullable so seed without a user is allowed
+  updatedBy  String?
 
-  @@unique([pageKey, sectionKey])
-}
-
-model SiteConfig {
-  id        String   @id @default("singleton")
-  data      Json     // SiteConfig shape (see src/lib/validation/schemas/site-config.ts)
-  updatedAt DateTime @updatedAt
-  updatedBy String?
-}
-
-model Navigation {
-  id        String   @id @default("singleton")
-  items     Json     // NavItem[]
-  updatedAt DateTime @updatedAt
-  updatedBy String?
+  @@id([pageKey, sectionKey, field])
 }
 
 // ─── Phase 1: Entity tables ───
