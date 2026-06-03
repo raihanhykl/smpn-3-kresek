@@ -9,6 +9,9 @@ import { GaleriSection } from '@components/organisms/fasilitas/GaleriSection';
 import { TatibSection } from '@components/organisms/fasilitas/TatibSection';
 import { CtaFinalSection } from '@components/organisms/CtaFinalSection';
 
+// Content comes from the DB in `api` mode; render per-request, not at build.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Fasilitas & Kegiatan — SMPN 3 Kresek',
   description: 'Sarana lengkap dan kegiatan beragam di SMPN 3 Kresek.',
