@@ -12,13 +12,6 @@ name: Update visual baselines
 
 on:
   workflow_dispatch:
-  # Temporary: regenerate baselines whenever the visual spec changes on this
-  # branch. Remove this push block (keep workflow_dispatch only) once the
-  # baselines are settled and CI is green.
-  push:
-    branches: [phase-0-foundation]
-    paths:
-      - 'playwright/tests/visual-baseline.spec.ts'
 
 # Allow the job to push the regenerated baselines back to the branch.
 permissions:
