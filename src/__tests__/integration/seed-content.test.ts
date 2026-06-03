@@ -3,10 +3,8 @@ import { prisma } from '@/lib/db/client';
 
 describe('seed-content script', () => {
   beforeAll(async () => {
-    // Clean entire content schema before testing seed.
-    await prisma.pageSection.deleteMany({});
-    await prisma.siteConfig.deleteMany({});
-    await prisma.navigation.deleteMany({});
+    // Clean entity tables before testing seed. (Page text/site/nav are config
+    // now — not seeded into the DB.)
     await prisma.teacher.deleteMany({});
     await prisma.achievement.deleteMany({});
     await prisma.extracurricular.deleteMany({});
@@ -27,27 +25,24 @@ describe('seed-content script', () => {
     const cmd = 'npx tsx scripts/seed-content.ts';
     execSync(cmd, { stdio: 'pipe', env: process.env, shell: '/bin/bash' });
     const firstCounts = {
-      site: await prisma.siteConfig.count(),
-      nav: await prisma.navigation.count(),
-      sections: await prisma.pageSection.count(),
       teachers: await prisma.teacher.count(),
       faqs: await prisma.faq.count(),
+      achievements: await prisma.achievement.count(),
+      gallery: await prisma.galleryItem.count(),
     };
 
     execSync(cmd, { stdio: 'pipe', env: process.env, shell: '/bin/bash' });
     const secondCounts = {
-      site: await prisma.siteConfig.count(),
-      nav: await prisma.navigation.count(),
-      sections: await prisma.pageSection.count(),
       teachers: await prisma.teacher.count(),
       faqs: await prisma.faq.count(),
+      achievements: await prisma.achievement.count(),
+      gallery: await prisma.galleryItem.count(),
     };
 
     expect(firstCounts).toEqual(secondCounts);
-    expect(firstCounts.site).toBe(1);
-    expect(firstCounts.nav).toBe(1);
-    expect(firstCounts.sections).toBeGreaterThan(20);  // at least ~30 page sections total
     expect(firstCounts.teachers).toBeGreaterThan(0);
     expect(firstCounts.faqs).toBeGreaterThan(0);
+    expect(firstCounts.achievements).toBeGreaterThan(0);
+    expect(firstCounts.gallery).toBeGreaterThan(0);
   }, 60_000);
 });

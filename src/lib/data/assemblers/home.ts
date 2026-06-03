@@ -1,75 +1,50 @@
-// Phase 1: types cast on JSONB sections are unchecked at runtime. Seed is the
-// only writer in Phase 1 (Zod-validated). Phase 2 will add Zod-on-write so this
-// remains safe; if Phase 2's admin UI ever stores invalid shapes, this assembler
-// will surface them via render errors rather than silent data corruption.
-import { getPageSections } from '../repositories/page-section-repo';
+// Section TEXT comes from config (src/config/pages/home.ts) — edit code = instant
+// change, no DB. The assembler still merges runtime ENTITY data (achievements,
+// gallery items from their repos) and overlays the 6 admin-editable section photos
+// from the SectionPhoto table on top of the config defaults.
+import { homePageConfig } from '@config/pages/home';
 import { getAllAchievements } from '../repositories/achievement-repo';
 import { getAllGalleryItems } from '../repositories/gallery-repo';
-import type {
-  HomePageConfig, HeroConfig, SambutanConfig, AboutConfig,
-  CtaFinal, SectionMeta, StatCard, ProgramCard, ContactCard, CtaLink,
-} from '@config/types';
+import { getAllSectionPhotos, slotKey } from '../repositories/section-photo-repo';
+import type { HomePageConfig } from '@config/types';
 
 // Home shows the most recent N entries of each list (ordered by the admin
 // drag-reorder `order` column), so newly added items appear automatically.
 const HOME_ACHIEVEMENTS_LIMIT = 5;
 const HOME_GALLERY_LIMIT = 8;
 
-// Shape stored in DB for sections that wrap "meta + cta".
-type GalleryMetaSection = {
-  meta: SectionMeta; ctaLabel: string; ctaHref: string;
-};
-type AchievementsMetaSection = {
-  meta: SectionMeta; ctaLabel: string; ctaHref: string;
-};
-type LokasiSection = {
-  meta: SectionMeta; panelTitle: string; panelDescription: string;
-  cards: ContactCard[]; primary: CtaLink; secondary: CtaLink; copyText: string;
-};
-type StatsSection = { meta: SectionMeta; cards: StatCard[] };
-type ProgramsSection = { meta: SectionMeta; cards: ProgramCard[] };
-
 export async function assembleHome(): Promise<HomePageConfig> {
-  const sections = await getPageSections('home');
-
-  const hero = sections.hero as HeroConfig;
-  const stats = sections.stats as StatsSection;
-  const sambutan = sections.sambutan as SambutanConfig;
-  const about = sections.about as AboutConfig;
-  const programs = sections.programs as ProgramsSection;
-  const galleryMeta = sections.galleryMeta as GalleryMetaSection;
-  const achievementsMeta = sections.achievementsMeta as AchievementsMetaSection;
-  const lokasi = sections.lokasi as LokasiSection;
-  const ctaFinal = sections.ctaFinal as CtaFinal;
-
-  // Home shows the top-N of each list by order; the full lists live on
-  // /profil (achievements) and /fasilitas (gallery).
-  const [allAchievements, allGallery] = await Promise.all([
+  const c = homePageConfig;
+  const [allAchievements, allGallery, photos] = await Promise.all([
     getAllAchievements(),
     getAllGalleryItems(),
+    getAllSectionPhotos(),
   ]);
   const achievements = allAchievements.slice(0, HOME_ACHIEVEMENTS_LIMIT);
   const gallery = allGallery.slice(0, HOME_GALLERY_LIMIT);
 
   return {
-    hero,
-    stats,
-    sambutan,
-    about,
-    programs,
-    gallery: {
-      meta: galleryMeta.meta,
-      items: gallery,
-      ctaLabel: galleryMeta.ctaLabel,
-      ctaHref: galleryMeta.ctaHref,
+    ...c,
+    // Photo overlay: DB photo when an admin set one, else the config default
+    // (unset → gradient placeholder in the render component).
+    hero: { ...c.hero, photo: photos[slotKey('home', 'hero', 'photo')] ?? c.hero.photo },
+    stats: c.stats,
+    sambutan: { ...c.sambutan, photo: photos[slotKey('home', 'sambutan', 'photo')] ?? c.sambutan.photo },
+    about: {
+      ...c.about,
+      photoMain: photos[slotKey('home', 'about', 'photoMain')] ?? c.about.photoMain,
+      photoSub: photos[slotKey('home', 'about', 'photoSub')] ?? c.about.photoSub,
     },
+    programs: c.programs,
+    // Entity lists come from the DB (admin CRUD), not config's seed-source items.
+    gallery: { meta: c.gallery.meta, items: gallery, ctaLabel: c.gallery.ctaLabel, ctaHref: c.gallery.ctaHref },
     achievements: {
-      meta: achievementsMeta.meta,
+      meta: c.achievements.meta,
       items: achievements,
-      ctaLabel: achievementsMeta.ctaLabel,
-      ctaHref: achievementsMeta.ctaHref,
+      ctaLabel: c.achievements.ctaLabel,
+      ctaHref: c.achievements.ctaHref,
     },
-    lokasi,
-    ctaFinal,
+    lokasi: c.lokasi,
+    ctaFinal: c.ctaFinal,
   };
 }

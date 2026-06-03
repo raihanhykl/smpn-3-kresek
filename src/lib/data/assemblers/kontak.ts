@@ -1,52 +1,28 @@
-// See header note in assemblers/home.ts about Phase 1 type-cast safety.
-import { getPageSections } from '../repositories/page-section-repo';
+// Section TEXT from config (src/config/pages/kontak.ts). FAQ items still merged
+// from the DB (admin CRUD). No admin-editable section photos on this page.
+import { kontakPageConfig } from '@config/pages/kontak';
 import { getFaqs } from '../repositories/faq-repo';
-import type {
-  ContactPageConfig, PageHeaderConfig, ContactFormConfig,
-  CtaFinal, SectionMeta, ContactCard, CtaLink,
-} from '@config/types';
-
-type KontakInfoSection = {
-  meta: SectionMeta; cards: ContactCard[];
-  socialHeading: string; socialSub: string;
-};
-type PetaSection = {
-  meta: SectionMeta; placeholderText: string;
-  primaryAction: CtaLink; secondaryAction: CtaLink;
-};
-type FaqMetaSection = {
-  meta: SectionMeta; searchPlaceholder: string;
-  filterLabels: ContactPageConfig['faq']['filterLabels'];
-  noResultsText: string; ctaText: string; ctaHref: string;
-};
+import type { ContactPageConfig } from '@config/types';
 
 export async function assembleContact(): Promise<ContactPageConfig> {
-  const [sections, faqs] = await Promise.all([
-    getPageSections('kontak'),
-    getFaqs(),
-  ]);
-
-  const pageHeader = sections.pageHeader as PageHeaderConfig;
-  const kontakInfo = sections.kontakInfo as KontakInfoSection;
-  const peta = sections.peta as PetaSection;
-  const form = sections.form as ContactFormConfig;
-  const faqMeta = sections.faqMeta as FaqMetaSection;
-  const ctaFinal = sections.ctaFinal as CtaFinal;
+  const c = kontakPageConfig;
+  const faqs = await getFaqs();
 
   return {
-    pageHeader,
-    kontakInfo,
-    peta,
-    form,
+    ...c,
+    pageHeader: c.pageHeader,
+    kontakInfo: c.kontakInfo,
+    peta: c.peta,
+    form: c.form,
     faq: {
-      meta: faqMeta.meta,
-      searchPlaceholder: faqMeta.searchPlaceholder,
-      filterLabels: faqMeta.filterLabels,
+      meta: c.faq.meta,
+      searchPlaceholder: c.faq.searchPlaceholder,
+      filterLabels: c.faq.filterLabels,
       items: faqs,
-      noResultsText: faqMeta.noResultsText,
-      ctaText: faqMeta.ctaText,
-      ctaHref: faqMeta.ctaHref,
+      noResultsText: c.faq.noResultsText,
+      ctaText: c.faq.ctaText,
+      ctaHref: c.faq.ctaHref,
     },
-    ctaFinal,
+    ctaFinal: c.ctaFinal,
   };
 }

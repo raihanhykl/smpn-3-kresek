@@ -1,53 +1,39 @@
-// See header note in assemblers/home.ts about Phase 1 type-cast safety.
-import { getPageSections } from '../repositories/page-section-repo';
+// Section TEXT from config (src/config/pages/profil.ts). Entity data (teachers,
+// achievements, org chart) still merged from the DB. Sejarah's photo is overlaid
+// from the SectionPhoto table.
+import { profilPageConfig } from '@config/pages/profil';
 import { getTeachers } from '../repositories/teacher-repo';
 import { getAllAchievements } from '../repositories/achievement-repo';
 import { getOrganizationChart } from '../repositories/organization-repo';
-import type {
-  ProfilePageConfig, PageHeaderConfig, VisiMisiConfig,
-  ObjectiveCard, IdentityRow, CtaFinal, SectionMeta,
-} from '@config/types';
-
-type SejarahSection = ProfilePageConfig['sejarah'];
-type StrukturMetaSection = { meta: SectionMeta; studentNote: string };
-type GuruMetaSection = { meta: SectionMeta; filterLabels: ProfilePageConfig['guru']['filterLabels'] };
-type PrestasiMetaSection = { meta: SectionMeta };
+import { getAllSectionPhotos, slotKey } from '../repositories/section-photo-repo';
+import type { ProfilePageConfig } from '@config/types';
 
 export async function assembleProfile(): Promise<ProfilePageConfig> {
-  const sections = await getPageSections('profil');
-
-  const pageHeader = sections.pageHeader as PageHeaderConfig;
-  const sejarah = sections.sejarah as SejarahSection;
-  const visiMisi = sections.visiMisi as VisiMisiConfig;
-  const tujuan = sections.tujuan as { meta: SectionMeta; cards: ObjectiveCard[] };
-  const identitas = sections.identitas as { meta: SectionMeta; rows: IdentityRow[] };
-  const strukturMeta = sections.strukturMeta as StrukturMetaSection;
-  const guruMeta = sections.guruMeta as GuruMetaSection;
-  const prestasiMeta = sections.prestasiMeta as PrestasiMetaSection;
-  const ctaFinal = sections.ctaFinal as CtaFinal;
-
-  const [teachers, achievements, chartLevels] = await Promise.all([
+  const c = profilPageConfig;
+  const [teachers, achievements, chartLevels, photos] = await Promise.all([
     getTeachers(),
     getAllAchievements(),
     getOrganizationChart(),
+    getAllSectionPhotos(),
   ]);
 
   return {
-    pageHeader,
-    sejarah,
-    visiMisi,
-    tujuan,
-    identitas,
+    ...c,
+    pageHeader: c.pageHeader,
+    sejarah: { ...c.sejarah, photo: photos[slotKey('profil', 'sejarah', 'photo')] ?? c.sejarah.photo },
+    visiMisi: c.visiMisi,
+    tujuan: c.tujuan,
+    identitas: c.identitas,
     struktur: {
-      meta: strukturMeta.meta,
-      chart: { levels: chartLevels, studentNote: strukturMeta.studentNote },
+      meta: c.struktur.meta,
+      chart: { levels: chartLevels, studentNote: c.struktur.chart.studentNote },
     },
     guru: {
-      meta: guruMeta.meta,
-      filterLabels: guruMeta.filterLabels,
+      meta: c.guru.meta,
+      filterLabels: c.guru.filterLabels,
       teachers,
     },
-    prestasi: { meta: prestasiMeta.meta, items: achievements },
-    ctaFinal,
+    prestasi: { meta: c.prestasi.meta, items: achievements },
+    ctaFinal: c.ctaFinal,
   };
 }

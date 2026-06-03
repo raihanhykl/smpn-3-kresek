@@ -1,56 +1,40 @@
-// See header note in assemblers/home.ts about Phase 1 type-cast safety.
-import { getPageSections } from '../repositories/page-section-repo';
+// Section TEXT from config (src/config/pages/akademik.ts). Subject groups (per
+// grade) + the kalender DocumentSlot still merged from the DB. Kurikulum's photo
+// is overlaid from the SectionPhoto table.
+import { akademikPageConfig } from '@config/pages/akademik';
 import { getSubjectGroupsByGrade } from '../repositories/subject-repo';
 import { getDocumentSlotWithMedia } from '../repositories/document-slot-repo';
-import type {
-  AcademicPageConfig, PageHeaderConfig, KurikulumConfig,
-  ScheduleCard, MethodCard, AssessmentCard, CalendarEvent,
-  CtaFinal, SectionMeta,
-} from '@config/types';
-
-type MapelMetaSection = { meta: SectionMeta };
-type JadwalSection = { meta: SectionMeta; cards: ScheduleCard[]; note: string };
-type MetodeSection = { meta: SectionMeta; cards: MethodCard[] };
-type PenilaianSection = { meta: SectionMeta; intro: string; cards: AssessmentCard[] };
-// Phase 3: kalenderMeta no longer carries downloadLabel/downloadHref. The
-// download link is sourced from the DocumentSlot at assembler runtime.
-type KalenderMetaSection = { meta: SectionMeta; events: CalendarEvent[] };
+import { getAllSectionPhotos, slotKey } from '../repositories/section-photo-repo';
+import type { AcademicPageConfig } from '@config/types';
 
 export async function assembleAcademic(): Promise<AcademicPageConfig> {
-  const [sections, g7, g8, g9, documentSlot] = await Promise.all([
-    getPageSections('akademik'),
+  const c = akademikPageConfig;
+  const [g7, g8, g9, documentSlot, photos] = await Promise.all([
     getSubjectGroupsByGrade(7),
     getSubjectGroupsByGrade(8),
     getSubjectGroupsByGrade(9),
     getDocumentSlotWithMedia('kalender-akademik'),
+    getAllSectionPhotos(),
   ]);
 
-  const pageHeader = sections.pageHeader as PageHeaderConfig;
-  const kurikulum = sections.kurikulum as KurikulumConfig;
-  const mapelMeta = sections.mapelMeta as MapelMetaSection;
-  const jadwal = sections.jadwal as JadwalSection;
-  const metode = sections.metode as MetodeSection;
-  const penilaian = sections.penilaian as PenilaianSection;
-  const kalenderMeta = sections.kalenderMeta as KalenderMetaSection;
-  const ctaFinal = sections.ctaFinal as CtaFinal;
-
   return {
-    pageHeader,
-    kurikulum,
+    ...c,
+    pageHeader: c.pageHeader,
+    kurikulum: { ...c.kurikulum, photo: photos[slotKey('akademik', 'kurikulum', 'photo')] ?? c.kurikulum.photo },
     mapel: {
-      meta: mapelMeta.meta,
+      meta: c.mapel.meta,
       tabs: [
         { id: 'kelas7', label: 'Kelas 7', groups: g7 },
         { id: 'kelas8', label: 'Kelas 8', groups: g8 },
         { id: 'kelas9', label: 'Kelas 9', groups: g9 },
       ],
     },
-    jadwal,
-    metode,
-    penilaian,
+    jadwal: c.jadwal,
+    metode: c.metode,
+    penilaian: c.penilaian,
     kalender: {
-      meta: kalenderMeta.meta,
-      events: kalenderMeta.events,
+      meta: c.kalender.meta,
+      events: c.kalender.events,
       documentSlot: documentSlot
         ? { id: documentSlot.id, media: documentSlot.media ? {
             id: documentSlot.media.id,
@@ -62,6 +46,6 @@ export async function assembleAcademic(): Promise<AcademicPageConfig> {
           } : null }
         : null,
     },
-    ctaFinal,
+    ctaFinal: c.ctaFinal,
   };
 }

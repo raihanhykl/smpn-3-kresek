@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth/config';
 import { AdminShell } from '@/components/admin/AdminShell';
-import { getPageSectionPhoto } from '@/lib/data/repositories/page-section-repo';
+import { getSectionPhoto } from '@/lib/data/repositories/section-photo-repo';
 import { PAGE_PHOTO_SLOTS } from '@/lib/validation/schemas/page-sections/photo-patch';
 import type { Photo } from '@config/types';
 import { PageSectionPhotoManager, type SlotSnapshot } from './PageSectionPhotoManager';
@@ -11,7 +11,7 @@ export default async function PagesPhotoEditorPage() {
   const session = await auth();
   const slots: SlotSnapshot[] = await Promise.all(
     PAGE_PHOTO_SLOTS.map(async (s): Promise<SlotSnapshot> => {
-      const current = await getPageSectionPhoto(s.pageKey, s.sectionKey, s.field);
+      const current = await getSectionPhoto(s.pageKey, s.sectionKey, s.field);
       return {
         pageKey: s.pageKey,
         sectionKey: s.sectionKey,

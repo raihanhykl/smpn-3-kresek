@@ -1,126 +1,17 @@
 /* eslint-disable no-console */
+// Page-section TEXT, SiteConfig and Navigation are no longer seeded — they live in
+// src/config/ and are read directly by the assemblers / ContentProvider. This seed
+// only populates DB-backed ENTITIES (teachers, achievements, …), DocumentSlots, and
+// Mading demo posts. The 6 section photos start unset (admin sets them via the UI).
 import { prisma } from '../src/lib/db/client';
-import { siteConfig as rawSite } from '../src/config/site';
-import { navigation as rawNav } from '../src/config/navigation';
 import { homePageConfig } from '../src/config/pages/home';
 import { profilPageConfig } from '../src/config/pages/profil';
 import { akademikPageConfig } from '../src/config/pages/akademik';
 import { fasilitasPageConfig } from '../src/config/pages/fasilitas';
 import { kontakPageConfig } from '../src/config/pages/kontak';
-import { siteConfigSchema } from '../src/lib/validation/schemas/site-config';
-import { navigationSchema } from '../src/lib/validation/schemas/navigation';
 import { TEACHER_CATEGORY_ORDER, EKSKUL_CATEGORY_ORDER } from '../src/config/category-order';
 
-// Helper: dump every section of a page into PageSection rows.
-async function seedPageSections(pageKey: string, sections: Record<string, unknown>) {
-  for (const [sectionKey, data] of Object.entries(sections)) {
-    await prisma.pageSection.upsert({
-      where: { pageKey_sectionKey: { pageKey, sectionKey } },
-      create: { pageKey, sectionKey, data: data as object },
-      update: { data: data as object },
-    });
-  }
-}
-
 async function main() {
-  console.log('==> Seed: SiteConfig + Navigation');
-  const { navigation: _navFromSite, ...siteRest } = rawSite;
-  void _navFromSite;
-  const siteData = siteRest;
-  siteConfigSchema.parse({ ...siteData, navigation: rawNav });
-  navigationSchema.parse(rawNav);
-
-  await prisma.siteConfig.upsert({
-    where: { id: 'singleton' },
-    create: { id: 'singleton', data: siteData as object },
-    update: { data: siteData as object },
-  });
-  await prisma.navigation.upsert({
-    where: { id: 'singleton' },
-    create: { id: 'singleton', items: rawNav as unknown as object },
-    update: { items: rawNav as unknown as object },
-  });
-
-  // ── Page sections ──
-  console.log('==> Seed: PageSection rows (home)');
-  await seedPageSections('home', {
-    hero: homePageConfig.hero,
-    stats: homePageConfig.stats,
-    sambutan: homePageConfig.sambutan,
-    about: homePageConfig.about,
-    programs: homePageConfig.programs,
-    // featuredIds list scopes which gallery items + achievements appear on /home,
-    // preventing the "show all 11" bug when other pages add entries to the same tables.
-    galleryMeta: {
-      meta: homePageConfig.gallery.meta,
-      ctaLabel: homePageConfig.gallery.ctaLabel,
-      ctaHref: homePageConfig.gallery.ctaHref,
-      featuredIds: homePageConfig.gallery.items.map((g) => g.id),
-    },
-    achievementsMeta: {
-      meta: homePageConfig.achievements.meta,
-      ctaLabel: homePageConfig.achievements.ctaLabel,
-      ctaHref: homePageConfig.achievements.ctaHref,
-      featuredIds: homePageConfig.achievements.items.map((a) => a.id),
-    },
-    lokasi: homePageConfig.lokasi,
-    ctaFinal: homePageConfig.ctaFinal,
-  });
-
-  console.log('==> Seed: PageSection rows (profil)');
-  await seedPageSections('profil', {
-    pageHeader: profilPageConfig.pageHeader,
-    sejarah: profilPageConfig.sejarah,
-    visiMisi: profilPageConfig.visiMisi,
-    tujuan: profilPageConfig.tujuan,
-    identitas: profilPageConfig.identitas,
-    strukturMeta: { meta: profilPageConfig.struktur.meta, studentNote: profilPageConfig.struktur.chart.studentNote },
-    guruMeta: { meta: profilPageConfig.guru.meta, filterLabels: profilPageConfig.guru.filterLabels },
-    prestasiMeta: {
-      meta: profilPageConfig.prestasi.meta,
-      featuredIds: profilPageConfig.prestasi.items.map((a) => a.id),
-    },
-    ctaFinal: profilPageConfig.ctaFinal,
-  });
-
-  console.log('==> Seed: PageSection rows (akademik)');
-  await seedPageSections('akademik', {
-    pageHeader: akademikPageConfig.pageHeader,
-    kurikulum: akademikPageConfig.kurikulum,
-    mapelMeta: { meta: akademikPageConfig.mapel.meta },
-    jadwal: akademikPageConfig.jadwal,
-    metode: akademikPageConfig.metode,
-    penilaian: akademikPageConfig.penilaian,
-    kalenderMeta: { meta: akademikPageConfig.kalender.meta, events: akademikPageConfig.kalender.events },
-    ctaFinal: akademikPageConfig.ctaFinal,
-  });
-
-  console.log('==> Seed: PageSection rows (fasilitas)');
-  await seedPageSections('fasilitas', {
-    pageHeader: fasilitasPageConfig.pageHeader,
-    saranaMeta: { meta: fasilitasPageConfig.sarana.meta, statStrip: fasilitasPageConfig.sarana.statStrip },
-    ekskulMeta: { meta: fasilitasPageConfig.ekskul.meta, statStrip: fasilitasPageConfig.ekskul.statStrip, filterLabels: fasilitasPageConfig.ekskul.filterLabels },
-    kegiatan: fasilitasPageConfig.kegiatan,
-    galeriMeta: {
-      meta: fasilitasPageConfig.galeri.meta,
-      filterLabels: fasilitasPageConfig.galeri.filterLabels,
-      featuredIds: fasilitasPageConfig.galeri.items.map((g) => g.id),
-    },
-    // Strip runtime-only documentSlot from the static seed — assemblers re-source it.
-    tatib: { meta: fasilitasPageConfig.tatib.meta, accordions: fasilitasPageConfig.tatib.accordions },
-    ctaFinal: fasilitasPageConfig.ctaFinal,
-  });
-
-  console.log('==> Seed: PageSection rows (kontak)');
-  await seedPageSections('kontak', {
-    pageHeader: kontakPageConfig.pageHeader,
-    kontakInfo: kontakPageConfig.kontakInfo,
-    peta: kontakPageConfig.peta,
-    form: kontakPageConfig.form,
-    faqMeta: { meta: kontakPageConfig.faq.meta, searchPlaceholder: kontakPageConfig.faq.searchPlaceholder, filterLabels: kontakPageConfig.faq.filterLabels, noResultsText: kontakPageConfig.faq.noResultsText, ctaText: kontakPageConfig.faq.ctaText, ctaHref: kontakPageConfig.faq.ctaHref },
-    ctaFinal: kontakPageConfig.ctaFinal,
-  });
-
   // ── Entities ──
   // Group teachers by category then assign intra-category order. categoryOrder
   // comes from TEACHER_CATEGORY_ORDER so display follows static (pimpinan first),

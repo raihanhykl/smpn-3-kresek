@@ -5,22 +5,24 @@ import { getSession } from '@/lib/auth/session';
 import { withRole, type ActionResult } from '@/lib/auth/server-action-guard';
 import { writeAudit } from '@/lib/security/audit';
 import { pageSectionPhotoPatchSchema } from '@/lib/validation/schemas/page-sections/photo-patch';
-import { setPageSectionPhoto, getPageSectionPhoto } from '@/lib/data/repositories/page-section-repo';
+import { setSectionPhoto, getSectionPhoto } from '@/lib/data/repositories/section-photo-repo';
 import { syncPhotoUsage } from '@/lib/media/sync-photo-usage';
 
 /**
- * Phase 5: persist a single section photo. Auth → Zod (validates the slot
- * triple + photo) → read prev (for MediaUsage diff) → write → sync usage →
- * audit → revalidate the page tag so the public page re-reads fresh.
+ * Persist a single section photo. Auth → Zod (validates the slot triple +
+ * photo) → read prev (for MediaUsage diff) → upsert → sync usage → audit →
+ * revalidate. Text lives in config now; only the 6 photo slots are DB-backed
+ * (SectionPhoto). Revalidate both the section-photos cache (assembler overlay)
+ * and the page tag.
  */
 export async function updatePageSectionPhotoAction(raw: unknown): Promise<ActionResult<void>> {
   const session = await getSession();
   return withRole(session, ['ADMIN', 'EDITOR'], async (user) => {
     const patch = pageSectionPhotoPatchSchema.parse(raw);
-    const prev = await getPageSectionPhoto(patch.pageKey, patch.sectionKey, patch.field);
-    await setPageSectionPhoto(patch.pageKey, patch.sectionKey, patch.field, patch.photo);
+    const prev = await getSectionPhoto(patch.pageKey, patch.sectionKey, patch.field);
+    await setSectionPhoto(patch.pageKey, patch.sectionKey, patch.field, patch.photo);
     await syncPhotoUsage(prev, patch.photo, {
-      usedInTable: 'PageSection',
+      usedInTable: 'SectionPhoto',
       usedInId: `${patch.pageKey}:${patch.sectionKey}:${patch.field}`,
       usedInField: 'photo',
     });
@@ -29,6 +31,7 @@ export async function updatePageSectionPhotoAction(raw: unknown): Promise<Action
       action: 'update_page_photo',
       target: `${patch.pageKey}/${patch.sectionKey}/${patch.field}`,
     }).catch(() => {});
+    revalidateTag('section-photos');
     revalidateTag(`page:${patch.pageKey}`);
   });
 }
