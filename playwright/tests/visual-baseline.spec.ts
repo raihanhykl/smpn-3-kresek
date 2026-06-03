@@ -75,8 +75,14 @@ test.describe('public site visual baseline', () => {
       await waitForStableHeight(page);
       await expect(page).toHaveScreenshot(`${path.replace(/\//g, '_') || '_root'}.png`, {
         fullPage: true,
-        maxDiffPixelRatio: 0.001,
-        maxDiffPixels: 50,
+        // Baselines are generated ON the GitHub `ubuntu-latest` runner (see the
+        // update-visual-baselines workflow) so they match CI's exact Chromium +
+        // font stack. The small tolerance below is a buffer for sub-pixel
+        // anti-aliasing drift when GitHub bumps its runner image — large enough
+        // to absorb font-edge noise (~0.5% of pixels), still tight enough to
+        // catch a real visual regression (a moved/missing section is far more).
+        maxDiffPixelRatio: 0.005,
+        maxDiffPixels: 200,
         animations: 'disabled',
       });
     });
