@@ -28,6 +28,7 @@ export const adminNav: AdminNavGroup[] = [
       { label: 'Mata Pelajaran', href: '/admin/entities/subjects', icon: '📚', roles: ['ADMIN', 'EDITOR'] },
       { label: 'Fasilitas', href: '/admin/entities/facilities', icon: '🏫', roles: ['ADMIN', 'EDITOR'] },
       { label: 'Galeri', href: '/admin/entities/gallery', icon: '🖼️', roles: ['ADMIN', 'EDITOR'] },
+      { label: 'Mading', href: '/admin/entities/mading', icon: '📰', roles: ['ADMIN', 'EDITOR'] },
       { label: 'FAQ', href: '/admin/entities/faqs', icon: '❓', roles: ['ADMIN', 'EDITOR'] },
       { label: 'Dokumen PDF', href: '/admin/entities/documents', icon: '📄', roles: ['ADMIN', 'EDITOR'] },
       { label: 'Halaman & Foto', href: '/admin/entities/pages', icon: '🖥️', roles: ['ADMIN', 'EDITOR'] },
