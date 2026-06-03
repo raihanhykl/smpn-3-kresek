@@ -63,8 +63,18 @@ export const kontakPageConfig: ContactPageConfig = {
     },
     placeholderText:
       '🗺️ Google Maps · SMPN 3 Kresek — Jl. Raya Kresek No. 15, Tangerang, Banten · Embed iframe Google Maps dapat ditambahkan di sini setelah data lokasi resmi tersedia',
-    primaryAction: { label: 'Buka di Google Maps', href: 'https://maps.google.com', icon: '📍' },
-    secondaryAction: { label: 'Petunjuk Arah', href: 'https://maps.google.com/dir', icon: '🧭' },
+    primaryAction: {
+      label: 'Buka di Google Maps',
+      href: 'https://www.google.com/maps?q=-6.124152,106.397865',
+      icon: '📍',
+    },
+    secondaryAction: {
+      label: 'Petunjuk Arah',
+      href: 'https://www.google.com/maps/dir/?api=1&destination=-6.124152,106.397865',
+      icon: '🧭',
+    },
+    mapEmbedUrl:
+      'https://www.google.com/maps?q=-6.124152,106.397865&z=16&hl=id&output=embed',
   },
   form: {
     eyebrow: 'FORM KONTAK',

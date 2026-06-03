@@ -311,6 +311,8 @@ export interface HomePageConfig {
     secondary: CtaLink;
     /** Address string to be copied when secondary action is triggered */
     copyText: string;
+    /** Google Maps embed URL; when set, an iframe is shown instead of the placeholder */
+    mapEmbedUrl?: string;
   };
   ctaFinal: CtaFinal;
 }
@@ -570,6 +572,8 @@ export interface ContactPageConfig {
     placeholderText: string;
     primaryAction: CtaLink;
     secondaryAction: CtaLink;
+    /** Google Maps embed URL; when set, an iframe is shown instead of the placeholder */
+    mapEmbedUrl?: string;
   };
   form: ContactFormConfig;
   faq: FaqConfig;
