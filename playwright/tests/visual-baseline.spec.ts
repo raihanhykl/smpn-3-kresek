@@ -56,6 +56,24 @@ async function warmRoute(page: import('@playwright/test').Page, path: string) {
   await page.reload({ waitUntil: 'load' });
 }
 
+// Force every scroll-reveal section to its final, revealed state. <RevealOnScroll>
+// (.reveal) starts at opacity:0/translateY(32px) and only flips to .is-visible
+// when an IntersectionObserver fires on scroll. Below-the-fold sections therefore
+// sit in their pre-reveal state during waitForStableHeight (which never scrolls),
+// then snap to full height when toHaveScreenshot's fullPage capture scrolls past
+// them — whether that happened before height was measured is a race. THIS is what
+// made /profil non-deterministic (6250px pre-reveal vs 7679px fully revealed) even
+// with warm + a wide stability window. Pinning .reveal to its visible state makes
+// the layout height independent of scroll/observer timing. toHaveScreenshot's
+// `animations: 'disabled'` does not cover this — .reveal is a JS class toggle, not
+// a CSS animation. We disconnect observers and add an override stylesheet so the
+// pin holds for the full-page scroll-capture too.
+async function settleReveals(page: import('@playwright/test').Page) {
+  await page.addStyleTag({
+    content: `.reveal { opacity: 1 !important; transform: none !important; transition: none !important; }`,
+  });
+}
+
 const PAGES = ['/', '/profil', '/akademik', '/fasilitas', '/kontak'];
 
 test.describe('public site visual baseline', () => {
@@ -70,8 +88,11 @@ test.describe('public site visual baseline', () => {
       await page.locator('footer').waitFor({ state: 'attached', timeout: 15_000 });
       await page.evaluate(() => document.fonts.ready);
       await page.waitForLoadState('networkidle');
-      // Then wait until the page stops growing — guards against a cold-compile
-      // capture taken while a data-driven section above the footer is still filling in.
+      // Pin scroll-reveal sections to their final state BEFORE measuring height,
+      // so the page's full height no longer depends on scroll/observer timing.
+      await settleReveals(page);
+      // Then wait until the page stops growing — now a true, scroll-independent
+      // settled height (guards against any residual cold-compile reflow too).
       await waitForStableHeight(page);
       await expect(page).toHaveScreenshot(`${path.replace(/\//g, '_') || '_root'}.png`, {
         fullPage: true,
