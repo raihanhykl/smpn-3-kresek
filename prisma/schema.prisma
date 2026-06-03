@@ -198,6 +198,18 @@ model Faq {
   @@index([category, order])
 }
 
+model Mading {
+  id        String   @id @default(cuid())
+  title     String   @db.Text
+  body      String?  @db.Text          // multi-paragraph; null = image-only post
+  images    Json                        // MadingImage[] : [{ src, alt }]
+  order     Int      @default(0)        // reserved for optional manual reorder
+  createdAt DateTime @default(now())    // post date + default sort key
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
 model GalleryItem {
   id           String   @id @default(cuid())
   caption      String   @db.Text

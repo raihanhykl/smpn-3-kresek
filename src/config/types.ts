@@ -46,7 +46,8 @@ export type Route =
   | '/profil'
   | '/akademik'
   | '/fasilitas'
-  | '/kontak';
+  | '/kontak'
+  | '/mading';
 
 export interface NavItem {
   label: string;
@@ -200,6 +201,16 @@ export interface Faq {
   answer: string;
   category: FaqCategory;
 }
+
+export type MadingImage = { src: string; alt: string };
+
+export type Mading = {
+  id: string;
+  title: string;
+  body?: string | undefined; // omitted when image-only
+  images: MadingImage[];
+  createdAt: string;         // ISO string, serialized at the repo boundary
+};
 
 export interface GalleryItem {
   id: string;
