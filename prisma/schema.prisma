@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -14,7 +14,7 @@ enum Role {
 
 model User {
   id                  String    @id @default(cuid())
-  email               String    @unique
+  email               String    @unique @db.VarChar(255)
   passwordHash        String
   name                String
   role                Role
@@ -92,7 +92,7 @@ model Teacher {
   categoryOrder Int      @default(0)
   photoKind     String   // "url" | "gradient"
   photoSrc      String?
-  photoAlt      String?
+  photoAlt      String?  @db.Text
   photoFrom     String?
   photoTo       String?
   photoEmoji    String?
@@ -120,7 +120,7 @@ model Achievement {
   // hoisted into photoEmoji.
   photoKind String   @default("gradient") // "gradient" | "url"
   photoSrc  String?
-  photoAlt  String?
+  photoAlt  String?  @db.Text
   photoFrom String?
   photoTo   String?
   photoEmoji String?
@@ -144,7 +144,7 @@ model Extracurricular {
   // seni → akademik → keagamaan → lainnya. Alphabetical would put akademik
   // first. Seed sets categoryOrder by enum index.
   categoryOrder Int      @default(0)
-  description   String
+  description   String   @db.Text
   pembina       String
   schedule      String
   achievement   String?
@@ -153,7 +153,7 @@ model Extracurricular {
   // and the old `icon` field hoisted into photoEmoji.
   photoKind    String   @default("gradient") // "gradient" | "url"
   photoSrc     String?
-  photoAlt     String?
+  photoAlt     String?  @db.Text
   photoFrom    String?
   photoTo      String?
   photoEmoji   String?
@@ -188,8 +188,8 @@ model Subject {
 
 model Faq {
   id        String   @id @default(cuid())
-  question  String
-  answer    String
+  question  String   @db.Text
+  answer    String   @db.Text
   category  String   // "akademik" | "administrasi" | "lainnya"
   order     Int      @default(0)
   createdAt DateTime @default(now())
@@ -200,13 +200,13 @@ model Faq {
 
 model GalleryItem {
   id           String   @id @default(cuid())
-  caption      String
+  caption      String   @db.Text
   // Phase 3b: Photo discriminated union stored as 6 flat columns.
   // Existing rows backfilled to the gradient branch from the old
   // emoji/gradientFrom/gradientTo columns (now dropped).
   photoKind    String   @default("gradient") // "gradient" | "url"
   photoSrc     String?
-  photoAlt     String?
+  photoAlt     String?  @db.Text
   photoFrom    String?
   photoTo      String?
   photoEmoji   String?
@@ -228,14 +228,15 @@ model Facility {
   id           String   @id @default(cuid())
   kind         String   // "featured" | "mini"
   name         String
-  description  String?  // only used when kind="featured"
+  description  String?  @db.Text // only used when kind="featured"
   // Phase 3b: featured kind's photo migrates from flat emoji/gradient* to
   // the shared 6-column Photo discriminated union. Mini kind stays icon-only.
-  // CHECK constraint enforces: (kind='featured' → photoKind NOT NULL)
-  // AND (kind='mini' → photoKind NULL).
+  // The per-kind invariant (featured → photo set, no icon; mini → icon, no
+  // photo) is enforced application-side by the facilitySchema discriminated
+  // union (src/lib/validation/schemas/entities/facility.ts).
   photoKind    String?  // "gradient" | "url" — only set when kind="featured"
   photoSrc     String?
-  photoAlt     String?
+  photoAlt     String?  @db.Text
   photoFrom    String?
   photoTo      String?
   photoEmoji   String?
@@ -286,11 +287,11 @@ model DocumentSlot {
 model MediaAsset {
   id            String         @id @default(cuid())
   kind          String         // "image" | "pdf"
-  url           String
-  publicId      String         @unique
-  hash          String         @unique
-  alt           String?
-  filename      String
+  url           String         @db.VarChar(500) // full Cloudinary secure_url; can exceed 191
+  publicId      String         @unique @db.VarChar(255) // unique → bounded length (no @db.Text)
+  hash          String         @unique @db.VarChar(255) // unique → bounded length
+  alt           String?        @db.Text
+  filename      String         @db.VarChar(255)
   sizeBytes     Int
   mimeType      String
   width         Int?

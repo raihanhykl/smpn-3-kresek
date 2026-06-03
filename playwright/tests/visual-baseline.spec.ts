@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
 // and run: npm run e2e -- playwright/tests/visual-baseline.spec.ts --update-snapshots
 //
 // Stable-capture notes: in api mode the public pages are server components that
-// fetch from Postgres on first (cold) compile, which can land AFTER networkidle.
+// fetch from MySQL on first (cold) compile, which can land AFTER networkidle.
 // Waiting only for <footer> to attach is NOT enough: on a cold compile the footer
 // can paint while a content section ABOVE it (e.g. /profil's achievements grid,
 // which is data-driven via featuredIds) is still streaming in, so the full-page

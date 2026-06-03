@@ -31,7 +31,7 @@ describe('env validation', () => {
   it('exposes typed env when all vars are valid', () => {
     process.env = {
       ...originalEnv,
-      DATABASE_URL: 'postgresql://x:y@localhost:5432/z',
+      DATABASE_URL: 'mysql://x:y@localhost:3306/z',
       AUTH_SECRET: 'a'.repeat(32),
       AUTH_URL: 'http://localhost:3000',
     };
@@ -40,7 +40,7 @@ describe('env validation', () => {
       env = require('@/lib/env').env;
     });
     expect(env).toMatchObject({
-      DATABASE_URL: expect.stringContaining('postgresql://'),
+      DATABASE_URL: expect.stringContaining('mysql://'),
       AUTH_SECRET: expect.any(String),
     });
   });

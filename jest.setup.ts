@@ -9,7 +9,7 @@
 // isolation regardless of DATABASE_URL being unset.
 process.env.AUTH_SECRET ??= 'test-secret-must-be-at-least-thirty-two-chars';
 process.env.AUTH_URL ??= 'http://localhost:3000';
-process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5432/unit-only-not-used';
+process.env.DATABASE_URL ??= 'mysql://test:test@localhost:3306/unit-only-not-used';
 process.env.CLOUDINARY_API_KEY ??= 'test-key';
 process.env.CLOUDINARY_API_SECRET ??= 'test-secret';
 process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ??= 'test-cloud';

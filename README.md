@@ -197,7 +197,7 @@ interface ContentProvider {
 Saat ini terdapat dua implementasi:
 
 - `StaticContentProvider` — membaca dari typed configs di `src/config/`. Aktif saat `NEXT_PUBLIC_DATA_SOURCE=static` (default).
-- `ApiContentProvider` — **stub** untuk future Node/Express/Prisma/Postgres backend. Setiap method-nya melempar "not implemented yet".
+- `ApiContentProvider` — **stub** untuk future Node/Express/Prisma/MySQL backend. Setiap method-nya melempar "not implemented yet".
 
 Factory `getContentProvider()` membaca env var dan mengembalikan implementasi yang sesuai (di-cache untuk lifetime process).
 
@@ -215,7 +215,7 @@ Saat backend siap:
 
 ### Future Prisma schema sketch
 
-Entity shapes di `types.ts` sudah didesain agar mapping ke Postgres tabel realistis:
+Entity shapes di `types.ts` sudah didesain agar mapping ke MySQL tabel realistis:
 
 - `Teacher` → `teachers (id, name, position, badge, category, photo_kind, photo_src, ...)`
 - `Achievement` → `achievements (id, year, title, recipient, organizer, level, icon)`
@@ -295,17 +295,18 @@ aws s3 sync out/ s3://your-bucket/ --delete
 One-time setup on VPS (Ubuntu 22.04+ assumed):
 
 ```bash
-# Install Node 22 via nvm + PM2 + Postgres
+# Install Node 22 via nvm + PM2 + MySQL
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
 source ~/.bashrc
 nvm install 22.22.0 && nvm use 22.22.0 && nvm alias default 22.22.0
 npm i -g pm2
 
-# Postgres (Ubuntu)
-sudo apt-get install -y postgresql-16
-sudo -u postgres psql -c "CREATE DATABASE smpn3;"
-sudo -u postgres psql -c "CREATE USER smpn3 WITH ENCRYPTED PASSWORD 'change-me';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE smpn3 TO smpn3;"
+# MySQL 8 (Ubuntu) — 8.0.16+ recommended
+sudo apt-get install -y mysql-server
+sudo mysql -e "CREATE DATABASE smpn3 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -e "CREATE USER 'smpn3'@'localhost' IDENTIFIED BY 'change-me';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON smpn3.* TO 'smpn3'@'localhost'; FLUSH PRIVILEGES;"
+# DATABASE_URL on MySQL: mysql://smpn3:change-me@localhost:3306/smpn3  (no ?schema= param)
 
 # Clone repo
 sudo mkdir -p /opt/smpn3 && sudo chown $USER /opt/smpn3

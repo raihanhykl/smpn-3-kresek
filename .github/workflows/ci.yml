@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  DATABASE_URL: postgresql://test:test@localhost:5433/smpn3_test?schema=public
+  DATABASE_URL: mysql://test:test@localhost:3306/smpn3_test
   AUTH_SECRET: ci-secret-must-be-at-least-thirty-two-chars-long
   AUTH_URL: http://localhost:3000
   NEXT_PUBLIC_DATA_SOURCE: static
@@ -29,22 +29,23 @@ jobs:
       - run: npm test
 
   integration:
-    name: Integration (Postgres)
+    name: Integration (MySQL)
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:16-alpine
+      mysql:
+        image: mysql:8.0
         env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: smpn3_test
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: smpn3_test
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
         ports:
-          - 5433:5432
+          - 3306:3306
         options: >-
-          --health-cmd="pg_isready -U test"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ptest"
           --health-interval=2s
           --health-timeout=2s
-          --health-retries=10
+          --health-retries=15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,19 +61,20 @@ jobs:
     name: Playwright E2E
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:16-alpine
+      mysql:
+        image: mysql:8.0
         env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: smpn3_test
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: smpn3_test
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
         ports:
-          - 5433:5432
+          - 3306:3306
         options: >-
-          --health-cmd="pg_isready -U test"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ptest"
           --health-interval=2s
           --health-timeout=2s
-          --health-retries=10
+          --health-retries=15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

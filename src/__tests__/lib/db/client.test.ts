@@ -13,7 +13,7 @@
 // credentials here on purpose.
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://user:pass@localhost:5432/placeholder?schema=public';
+  'mysql://user:pass@localhost:3306/placeholder';
 
 describe('prisma singleton', () => {
   const ORIGINAL_NODE_ENV = process.env.NODE_ENV;

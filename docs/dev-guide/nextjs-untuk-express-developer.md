@@ -340,7 +340,7 @@ npm run start            # = jalankan production build
 npm run lint             # = ESLint
 npm run typecheck        # = tsc --noEmit
 npm test                 # = unit tests (Jest)
-npm run test:int         # = integration tests (Jest + real Postgres)
+npm run test:int         # = integration tests (Jest + real MySQL)
 npm run e2e              # = E2E tests (Playwright + browser)
 
 npm run db:migrate       # = prisma migrate dev (apply schema change)
