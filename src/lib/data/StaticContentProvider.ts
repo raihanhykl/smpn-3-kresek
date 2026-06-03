@@ -4,6 +4,7 @@ import { profilPageConfig } from '@config/pages/profil';
 import { akademikPageConfig } from '@config/pages/akademik';
 import { fasilitasPageConfig } from '@config/pages/fasilitas';
 import { kontakPageConfig } from '@config/pages/kontak';
+import type { Mading } from '@config/types';
 import type { ContentProvider } from './ContentProvider';
 
 export class StaticContentProvider implements ContentProvider {
@@ -24,5 +25,11 @@ export class StaticContentProvider implements ContentProvider {
   }
   async getContactPage() {
     return kontakPageConfig;
+  }
+  async getMadingList(): Promise<Mading[]> {
+    return [];
+  }
+  async getMadingById(): Promise<Mading | null> {
+    return null;
   }
 }

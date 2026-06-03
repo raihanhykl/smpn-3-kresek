@@ -1,14 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  images: { unoptimized: true },
-  trailingSlash: true,
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: false },
   typescript: { ignoreBuildErrors: false },
-  env: {
-    NEXT_PUBLIC_DATA_SOURCE: process.env.NEXT_PUBLIC_DATA_SOURCE ?? 'static',
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? '',
+  // Phase 0: server runtime (no output:'export', no trailingSlash).
+  // NEXT_PUBLIC_* env vars are validated by src/lib/env.ts and inlined
+  // automatically by Next — no `env` block needed here.
+  images: {
+    // Phase 3: allow Cloudinary-hosted images so next/image can optimize them.
+    // We host both image/upload/* (photos) and raw/upload/* (PDFs); next/image
+    // only renders the image branch, but pathname is permissive so we don't
+    // accidentally block valid Cloudinary URLs the URL allowlist already vets.
+    remotePatterns: [
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+    ],
   },
 };
 

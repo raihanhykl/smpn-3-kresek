@@ -1,6 +1,7 @@
 import { Container } from '@components/atoms/Container';
 import { SectionHeading } from '@components/atoms/SectionHeading';
 import { BadgeLevel } from '@components/atoms/BadgeLevel';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { ProfilePageConfig } from '@config/types';
 
 export function PrestasiGridSection({ data }: { data: ProfilePageConfig['prestasi'] }) {
@@ -11,9 +12,21 @@ export function PrestasiGridSection({ data }: { data: ProfilePageConfig['prestas
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {data.items.map((a) => (
             <article key={a.id} className="overflow-hidden rounded-md bg-white shadow-sm transition-shadow hover:shadow-md">
-              <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-primary-bg to-white text-6xl">
-                <span aria-hidden>{a.icon}</span>
-              </div>
+              {a.photo.kind === 'url' ? (
+                // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
+                <img
+                  src={cldUrl(a.photo.src, 'card', cropOf(a.photo))}
+                  alt={a.photo.alt}
+                  className="aspect-[4/3] w-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex aspect-[4/3] items-center justify-center text-6xl"
+                  style={{ background: `linear-gradient(135deg, ${a.photo.from}, ${a.photo.to})` }}
+                >
+                  <span aria-hidden>{a.photo.emoji}</span>
+                </div>
+              )}
               <div className="p-5">
                 <div className="mb-2 flex items-center justify-between">
                   <BadgeLevel level={a.level} />

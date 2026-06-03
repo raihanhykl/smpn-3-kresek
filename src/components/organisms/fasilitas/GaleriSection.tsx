@@ -24,13 +24,11 @@ export function GaleriSection({ data }: { data: FacilitiesPageConfig['galeri'] }
       <Container>
         <SectionHeading eyebrow={data.meta.eyebrow} title={data.meta.title} subtitle={data.meta.subtitle} />
         <FilterTabs tabs={tabs} active={active} onChange={setActive} className="mb-10" />
-        <div className="grid auto-rows-[200px] grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        {/* Phase 4: uniform 4:3 grid — every card is the same size (span mosaic
+            dropped) so the gallery reads evenly and photos are easy to swap. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {visible.map((item) => (
-            <GalleryItem
-              key={item.id}
-              data={item}
-              className={item.span === 'wide' ? 'sm:col-span-2' : item.span === 'tall' ? 'row-span-2' : ''}
-            />
+            <GalleryItem key={item.id} data={item} />
           ))}
         </div>
       </Container>

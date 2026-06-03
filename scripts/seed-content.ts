@@ -1,0 +1,354 @@
+/* eslint-disable no-console */
+// Page-section TEXT, SiteConfig and Navigation are no longer seeded — they live in
+// src/config/ and are read directly by the assemblers / ContentProvider. This seed
+// only populates DB-backed ENTITIES (teachers, achievements, …), DocumentSlots, and
+// Mading demo posts. The 6 section photos start unset (admin sets them via the UI).
+import { prisma } from '../src/lib/db/client';
+import { homePageConfig } from '../src/config/pages/home';
+import { profilPageConfig } from '../src/config/pages/profil';
+import { akademikPageConfig } from '../src/config/pages/akademik';
+import { fasilitasPageConfig } from '../src/config/pages/fasilitas';
+import { kontakPageConfig } from '../src/config/pages/kontak';
+import { TEACHER_CATEGORY_ORDER, EKSKUL_CATEGORY_ORDER } from '../src/config/category-order';
+
+async function main() {
+  // ── Entities ──
+  // Group teachers by category then assign intra-category order. categoryOrder
+  // comes from TEACHER_CATEGORY_ORDER so display follows static (pimpinan first),
+  // not alphabetical.
+  console.log('==> Seed: Teachers');
+  const teachersByCategory = new Map<string, typeof profilPageConfig.guru.teachers>();
+  for (const t of profilPageConfig.guru.teachers) {
+    const list = teachersByCategory.get(t.category) ?? [];
+    list.push(t);
+    teachersByCategory.set(t.category, list);
+  }
+  for (const [cat, list] of teachersByCategory) {
+    const catOrder = TEACHER_CATEGORY_ORDER[cat as keyof typeof TEACHER_CATEGORY_ORDER] ?? 99;
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i]!;
+      const photo = t.photo;
+      const order = i;
+      // Field set differs by photoKind. Compute the full set once so create+update agree.
+      const photoFields =
+        photo.kind === 'url'
+          ? {
+              photoKind: 'url' as const,
+              photoSrc: photo.src, photoAlt: photo.alt,
+              photoFrom: null, photoTo: null, photoEmoji: null,
+            }
+          : {
+              photoKind: 'gradient' as const,
+              photoSrc: null, photoAlt: null,
+              photoFrom: photo.from, photoTo: photo.to, photoEmoji: photo.emoji,
+            };
+      await prisma.teacher.upsert({
+        where: { id: t.id },
+        create: {
+          id: t.id, name: t.name, position: t.position, badge: t.badge, category: t.category,
+          categoryOrder: catOrder, order, ...photoFields,
+        },
+        update: {
+          name: t.name, position: t.position, badge: t.badge, category: t.category,
+          categoryOrder: catOrder, order, ...photoFields,
+        },
+      });
+    }
+  }
+
+  console.log('==> Seed: Achievements (combined home + profil, dedup by id)');
+  // Both home and profil reference achievements by id; merge so single row per
+  // achievement exists. /home picks 5 via featuredIds, /profil picks 6.
+  const allAchievements = new Map<string, (typeof homePageConfig.achievements.items)[number]>();
+  for (const a of homePageConfig.achievements.items) allAchievements.set(a.id, a);
+  for (const a of profilPageConfig.prestasi.items) allAchievements.set(a.id, a);
+  const achievementEntries = Array.from(allAchievements.values());
+  for (let idx = 0; idx < achievementEntries.length; idx++) {
+    const a = achievementEntries[idx]!;
+    const order = idx; // SAME order value passed to both create and update — avoids post-increment trap.
+    const photoCols = a.photo.kind === 'url'
+      ? {
+          photoKind: 'url',
+          photoSrc: a.photo.src,
+          photoAlt: a.photo.alt,
+          photoFrom: null,
+          photoTo: null,
+          photoEmoji: null,
+        }
+      : {
+          photoKind: 'gradient',
+          photoSrc: null,
+          photoAlt: null,
+          photoFrom: a.photo.from,
+          photoTo: a.photo.to,
+          photoEmoji: a.photo.emoji,
+        };
+    await prisma.achievement.upsert({
+      where: { id: a.id },
+      create: {
+        id: a.id, year: a.year, title: a.title, recipient: a.recipient,
+        organizer: a.organizer, level: a.level, ...photoCols, order,
+      },
+      update: {
+        year: a.year, title: a.title, recipient: a.recipient,
+        organizer: a.organizer, level: a.level, ...photoCols, order,
+      },
+    });
+  }
+
+  console.log('==> Seed: Extracurriculars');
+  const ekskulByCategory = new Map<string, typeof fasilitasPageConfig.ekskul.items>();
+  for (const e of fasilitasPageConfig.ekskul.items) {
+    const list = ekskulByCategory.get(e.category) ?? [];
+    list.push(e);
+    ekskulByCategory.set(e.category, list);
+  }
+  for (const [cat, list] of ekskulByCategory) {
+    const catOrder = EKSKUL_CATEGORY_ORDER[cat as keyof typeof EKSKUL_CATEGORY_ORDER] ?? 99;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      const order = i;
+      const achievement = e.achievement ?? null;
+      const photoCols = e.photo.kind === 'url'
+        ? {
+            photoKind: 'url',
+            photoSrc: e.photo.src,
+            photoAlt: e.photo.alt,
+            photoFrom: null,
+            photoTo: null,
+            photoEmoji: null,
+          }
+        : {
+            photoKind: 'gradient',
+            photoSrc: null,
+            photoAlt: null,
+            photoFrom: e.photo.from,
+            photoTo: e.photo.to,
+            photoEmoji: e.photo.emoji,
+          };
+      await prisma.extracurricular.upsert({
+        where: { id: e.id },
+        create: {
+          id: e.id, name: e.name, category: e.category, categoryOrder: catOrder,
+          description: e.description, pembina: e.pembina, schedule: e.schedule,
+          achievement, ...photoCols, order,
+        },
+        update: {
+          name: e.name, category: e.category, categoryOrder: catOrder,
+          description: e.description, pembina: e.pembina, schedule: e.schedule,
+          achievement, ...photoCols, order,
+        },
+      });
+    }
+  }
+
+  console.log('==> Seed: Subjects (dedup across grades into hoursByGrade)');
+  // The static config lists subjects per-grade; merge them so each subject is a
+  // single row whose hoursByGrade records which grades teach it (+ JP each).
+  // Identity = subject name. Group A (wajib) vs B (pengembangan) derived from the
+  // group id suffix (k{7,8,9}-a → wajib, -b → pengembangan).
+  type SeedSubject = {
+    group: 'wajib' | 'pengembangan';
+    name: string; icon: string; iconBg: string;
+    hoursByGrade: Record<string, string>;
+    order: number;
+  };
+  const merged = new Map<string, SeedSubject>();
+  let nextOrder = 0;
+  for (const tab of akademikPageConfig.mapel.tabs) {
+    const grade = tab.id === 'kelas7' ? '7' : tab.id === 'kelas8' ? '8' : '9';
+    for (const group of tab.groups) {
+      const groupKey = group.id.endsWith('-a') ? 'wajib' : 'pengembangan';
+      for (const s of group.subjects) {
+        const key = s.name;
+        let entry = merged.get(key);
+        if (!entry) {
+          entry = { group: groupKey, name: s.name, icon: s.icon, iconBg: s.iconBg, hoursByGrade: {}, order: nextOrder++ };
+          merged.set(key, entry);
+        }
+        entry.hoursByGrade[grade] = s.hours;
+      }
+    }
+  }
+  await prisma.subject.deleteMany({});
+  for (const s of merged.values()) {
+    await prisma.subject.create({
+      data: {
+        group: s.group, name: s.name, icon: s.icon, iconBg: s.iconBg,
+        hoursByGrade: s.hoursByGrade, order: s.order,
+      },
+    });
+  }
+
+  console.log('==> Seed: Faqs');
+  for (let i = 0; i < kontakPageConfig.faq.items.length; i++) {
+    const f = kontakPageConfig.faq.items[i]!;
+    const order = i;
+    await prisma.faq.upsert({
+      where: { id: f.id },
+      create: { id: f.id, question: f.question, answer: f.answer, category: f.category, order },
+      update: { question: f.question, answer: f.answer, category: f.category, order },
+    });
+  }
+
+  console.log('==> Seed: GalleryItems (combined home + fasilitas, dedup by id)');
+  const allGallery = new Map<string, (typeof homePageConfig.gallery.items)[number]>();
+  for (const g of homePageConfig.gallery.items) allGallery.set(g.id, g);
+  for (const g of fasilitasPageConfig.galeri.items) allGallery.set(g.id, g);
+  const galleryEntries = Array.from(allGallery.values());
+  for (let idx = 0; idx < galleryEntries.length; idx++) {
+    const g = galleryEntries[idx]!;
+    const order = idx;
+    // Phase 3b: seed maps the static-config Photo (always gradient kind)
+    // onto the new 6-column Photo storage.
+    const photoCols = g.photo.kind === 'url'
+      ? {
+          photoKind: 'url',
+          photoSrc: g.photo.src,
+          photoAlt: g.photo.alt,
+          photoFrom: null,
+          photoTo: null,
+          photoEmoji: null,
+        }
+      : {
+          photoKind: 'gradient',
+          photoSrc: null,
+          photoAlt: null,
+          photoFrom: g.photo.from,
+          photoTo: g.photo.to,
+          photoEmoji: g.photo.emoji,
+        };
+    await prisma.galleryItem.upsert({
+      where: { id: g.id },
+      create: {
+        id: g.id, caption: g.caption,
+        ...photoCols,
+        category: g.category ?? null, span: g.span ?? null, order,
+      },
+      update: {
+        caption: g.caption,
+        ...photoCols,
+        category: g.category ?? null, span: g.span ?? null, order,
+      },
+    });
+  }
+
+  console.log('==> Seed: Facilities');
+  for (let i = 0; i < fasilitasPageConfig.sarana.featured.length; i++) {
+    const f = fasilitasPageConfig.sarana.featured[i]!;
+    const order = i;
+    const photoCols = f.photo.kind === 'url'
+      ? {
+          photoKind: 'url',
+          photoSrc: f.photo.src,
+          photoAlt: f.photo.alt,
+          photoFrom: null,
+          photoTo: null,
+          photoEmoji: null,
+        }
+      : {
+          photoKind: 'gradient',
+          photoSrc: null,
+          photoAlt: null,
+          photoFrom: f.photo.from,
+          photoTo: f.photo.to,
+          photoEmoji: f.photo.emoji,
+        };
+    await prisma.facility.upsert({
+      where: { id: f.id },
+      create: {
+        id: f.id, kind: 'featured', name: f.name, description: f.description,
+        ...photoCols, span: f.span ?? null, icon: null, order,
+      },
+      update: {
+        kind: 'featured', name: f.name, description: f.description,
+        ...photoCols, span: f.span ?? null, icon: null, order,
+      },
+    });
+  }
+  for (let i = 0; i < fasilitasPageConfig.sarana.mini.length; i++) {
+    const m = fasilitasPageConfig.sarana.mini[i]!;
+    const order = i;
+    await prisma.facility.upsert({
+      where: { id: m.id },
+      create: {
+        id: m.id, kind: 'mini', name: m.name, icon: m.icon,
+        description: null,
+        photoKind: null, photoSrc: null, photoAlt: null,
+        photoFrom: null, photoTo: null, photoEmoji: null,
+        span: null,
+        order,
+      },
+      update: {
+        kind: 'mini', name: m.name, icon: m.icon,
+        description: null,
+        photoKind: null, photoSrc: null, photoAlt: null,
+        photoFrom: null, photoTo: null, photoEmoji: null,
+        span: null,
+        order,
+      },
+    });
+  }
+
+  console.log('==> Seed: OrganizationChart (wipe + recreate for stable structure)');
+  // OrganizationMember structure changes irregularly between deployments. Index-based IDs
+  // (lvl0-0, lvl0-1, ...) become orphans if static config rearranges. Wiping + recreating
+  // is simple, fast (few rows), and idempotent. Phase 2 admin UI will eventually replace
+  // this with stable cuid()-generated IDs managed via CRUD UI.
+  await prisma.organizationMember.deleteMany({});
+  let omOrder = 0;
+  for (let levelIdx = 0; levelIdx < profilPageConfig.struktur.chart.levels.length; levelIdx++) {
+    const lvl = profilPageConfig.struktur.chart.levels[levelIdx]!;
+    for (let bIdx = 0; bIdx < lvl.boxes.length; bIdx++) {
+      const box = lvl.boxes[bIdx]!;
+      const id = `${lvl.id}-${bIdx}`;
+      const order = omOrder++;
+      await prisma.organizationMember.create({
+        data: { id, name: box.name, role: box.title, level: levelIdx, order },
+      });
+    }
+  }
+
+  // Mading: demo posts the school replaces via the admin UI. No real Cloudinary
+  // publicIds are guaranteed to exist, so seed text-only examples with empty
+  // images[] (a fabricated src would 404 in cldUrl). The school adds real photos
+  // through /admin/entities/mading.
+  console.log('==> Seed: Mading');
+  const madingSeed = [
+    {
+      id: 'mading-1',
+      title: 'Selamat Datang di Mading SMPN 3 Kresek',
+      body: 'Mading digital ini berisi berita dan informasi terbaru seputar kegiatan sekolah.\n\nPantau terus halaman ini untuk pengumuman penting, prestasi siswa, dan kegiatan sekolah lainnya.',
+      images: [] as { src: string; alt: string }[],
+    },
+    {
+      id: 'mading-2',
+      title: 'Kegiatan Belajar Mengajar Semester Ini',
+      body: 'Kegiatan belajar mengajar berjalan lancar dengan berbagai program unggulan untuk mengembangkan potensi setiap siswa.',
+      images: [],
+    },
+  ];
+  for (let i = 0; i < madingSeed.length; i++) {
+    const m = madingSeed[i]!;
+    await prisma.mading.upsert({
+      where: { id: m.id },
+      update: { title: m.title, body: m.body, images: m.images, order: i },
+      create: { id: m.id, title: m.title, body: m.body, images: m.images, order: i },
+    });
+  }
+
+  console.log('==> Seed: DocumentSlots (empty placeholders)');
+  for (const slotId of ['kalender-akademik', 'tata-tertib']) {
+    await prisma.documentSlot.upsert({
+      where: { id: slotId },
+      create: { id: slotId, mediaId: null },
+      update: {},
+    });
+  }
+
+  console.log('==> Done');
+}
+
+main()
+  .catch((err) => { console.error(err); process.exit(1); })
+  .finally(() => prisma.$disconnect());

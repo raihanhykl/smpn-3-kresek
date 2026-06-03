@@ -1,4 +1,5 @@
 import { Badge } from '@components/atoms/Badge';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { Extracurricular, EkskulCategory } from '@config/types';
 
 const tones: Record<EkskulCategory, { bg: string; color: string; label: string }> = {
@@ -12,10 +13,25 @@ const tones: Record<EkskulCategory, { bg: string; color: string; label: string }
 
 export function EkskulCard({ data }: { data: Extracurricular }) {
   const tone = tones[data.category];
+  const { photo } = data;
   return (
     <div className="overflow-hidden rounded-md bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="relative flex aspect-video items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200 text-5xl">
-        <span aria-hidden>{data.icon}</span>
+      <div className="relative aspect-video">
+        {photo.kind === 'url' ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
+          <img
+            src={cldUrl(photo.src, 'card', cropOf(photo))}
+            alt={photo.alt}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div
+            className="flex h-full w-full items-center justify-center text-5xl"
+            style={{ background: `linear-gradient(135deg, ${photo.from}, ${photo.to})` }}
+          >
+            <span aria-hidden>{photo.emoji}</span>
+          </div>
+        )}
         <span
           className="absolute right-3 top-3 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide"
           style={{ background: tone.bg, color: tone.color }}

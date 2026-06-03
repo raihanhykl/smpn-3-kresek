@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, AnchorHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@lib/utils/cn';
 
-type Variant = 'primary' | 'outline' | 'outline-dark' | 'white' | 'ppdb' | 'wa' | 'email';
+type Variant = 'primary' | 'outline' | 'outline-dark' | 'white' | 'wa' | 'email';
 type Size = 'md' | 'sm';
 
 interface CommonProps {
@@ -24,7 +24,6 @@ const variants: Record<Variant, string> = {
   outline: 'border-white/50 text-white hover:bg-white/15 hover:border-white',
   'outline-dark': 'border-neutral-300 text-neutral-700 hover:border-primary hover:text-primary hover:bg-primary-bg',
   white: 'bg-white text-primary border-white hover:bg-white/90 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.2)]',
-  ppdb: 'bg-secondary text-white hover:bg-[#D97706] hover:-translate-y-0.5 hover:shadow-md',
   wa: 'bg-[#25D366] text-white hover:bg-[#1FB955] hover:-translate-y-0.5 hover:shadow-md',
   email: 'bg-primary text-white hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-md',
 };

@@ -6,6 +6,7 @@ import { BadgeLevel } from '@components/atoms/BadgeLevel';
 import { TextLink } from '@components/atoms/TextLink';
 import { useCarousel } from '@lib/hooks/useCarousel';
 import { cn } from '@lib/utils/cn';
+import { cldUrl, cropOf } from '@/lib/media/cldUrl';
 import type { HomePageConfig } from '@config/types';
 
 export function PrestasiCarouselSection({ data }: { data: HomePageConfig['achievements'] }) {
@@ -22,9 +23,21 @@ export function PrestasiCarouselSection({ data }: { data: HomePageConfig['achiev
             {data.items.map((a) => (
               <div key={a.id} className="w-full shrink-0 px-2 md:w-1/2 md:px-3 lg:w-1/3">
                 <article className="overflow-hidden rounded-md bg-white shadow-md">
-                  <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-primary-bg to-white text-6xl">
-                    <span aria-hidden>{a.icon}</span>
-                  </div>
+                  {a.photo.kind === 'url' ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Cloudinary CDN already optimises
+                    <img
+                      src={cldUrl(a.photo.src, 'card', cropOf(a.photo))}
+                      alt={a.photo.alt}
+                      className="aspect-[4/3] w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="flex aspect-[4/3] items-center justify-center text-6xl"
+                      style={{ background: `linear-gradient(135deg, ${a.photo.from}, ${a.photo.to})` }}
+                    >
+                      <span aria-hidden>{a.photo.emoji}</span>
+                    </div>
+                  )}
                   <div className="p-5">
                     <div className="mb-2 flex items-center justify-between">
                       <BadgeLevel level={a.level} />

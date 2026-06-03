@@ -18,18 +18,29 @@ export function LokasiSection({ data }: { data: HomePageConfig['lokasi'] }) {
         <SectionHeading eyebrow={data.meta.eyebrow} title={data.meta.title} subtitle={data.meta.subtitle} />
         <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
           <div className="overflow-hidden rounded-lg border border-neutral-200 bg-gradient-to-br from-primary-bg to-white">
-            <div className="flex h-full min-h-[400px] flex-col items-center justify-center px-6 py-12 text-center">
-              <span className="text-6xl" aria-hidden>
-                📍
-              </span>
-              <h3 className="mt-4 font-heading text-lg font-bold text-neutral-900">Google Maps</h3>
-              <p className="mt-1 max-w-sm text-sm text-neutral-600">
-                SMPN 3 Kresek · Jl. Raya Kresek, Tangerang, Banten
-              </p>
-              <p className="mt-1 max-w-sm text-xs text-neutral-500">
-                Embed iframe maps dapat ditambahkan di sini
-              </p>
-            </div>
+            {data.mapEmbedUrl ? (
+              <iframe
+                src={data.mapEmbedUrl}
+                title="Lokasi SMPN 3 Kresek di Google Maps"
+                className="h-full min-h-[400px] w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+              />
+            ) : (
+              <div className="flex h-full min-h-[400px] flex-col items-center justify-center px-6 py-12 text-center">
+                <span className="text-6xl" aria-hidden>
+                  📍
+                </span>
+                <h3 className="mt-4 font-heading text-lg font-bold text-neutral-900">Google Maps</h3>
+                <p className="mt-1 max-w-sm text-sm text-neutral-600">
+                  SMPN 3 Kresek · Jl. Raya Kresek, Tangerang, Banten
+                </p>
+                <p className="mt-1 max-w-sm text-xs text-neutral-500">
+                  Embed iframe maps dapat ditambahkan di sini
+                </p>
+              </div>
+            )}
           </div>
           <div>
             <h3 className="font-heading text-2xl font-extrabold text-neutral-900">{data.panelTitle}</h3>

@@ -1,0 +1,329 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique @db.VarChar(255)
+  passwordHash        String
+  name                String
+  role                Role
+  mustChangePassword  Boolean   @default(false)
+  passwordChangedAt   DateTime?
+  createdAt           DateTime  @default(now())
+  lastLoginAt         DateTime?
+  sessions            Session[]
+  auditLogs           AuditLog[]
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  target    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  // Restrict: audit trail is forensic evidence and must survive user deletion.
+  // Deleting a user with audit rows will fail loudly; the right cleanup path is
+  // to anonymize (set userId to a tombstone user) or archive, never cascade.
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([target, createdAt])
+}
+
+// ─── Section photos ───
+// All page TEXT/site-config/navigation now lives in src/config/ (read directly by
+// the assemblers) — the former PageSection / SiteConfig / Navigation tables were
+// dropped. The ONLY page-section data that stays DB-backed (admin-editable) is the
+// 6 section PHOTO slots, stored here as the shared 6-flat-column Photo union + crop.
+// A row is created lazily on first save; absent / photoKind=NULL means "unset", and
+// the public render falls back to the config/UI gradient placeholder.
+model SectionPhoto {
+  pageKey    String   // "home" | "profil" | "akademik"
+  sectionKey String   // "hero" | "sambutan" | "about" | "sejarah" | "kurikulum"
+  field      String   // "photo" | "photoMain" | "photoSub"
+  photoKind  String?  // "url" | "gradient" | null (null = unset → config/UI default)
+  photoSrc   String?  @db.VarChar(255)
+  photoAlt   String?  @db.Text
+  photoFrom  String?
+  photoTo    String?
+  photoEmoji String?
+  photoCropX Float?
+  photoCropY Float?
+  photoCropW Float?
+  photoCropH Float?
+  updatedAt  DateTime @updatedAt
+  updatedBy  String?
+
+  @@id([pageKey, sectionKey, field])
+}
+
+// ─── Phase 1: Entity tables ───
+
+model Teacher {
+  id            String   @id @default(cuid())
+  name          String
+  position      String
+  badge         String
+  category      String   // "pimpinan" | "guru" | "tu"
+  // Explicit display order per category. Static config has pimpinan first,
+  // then guru, then tu — alphabetical sort by category would reorder. Seed
+  // sets categoryOrder = 0 for pimpinan, 1 for guru, 2 for tu.
+  categoryOrder Int      @default(0)
+  photoKind     String   // "url" | "gradient"
+  photoSrc      String?
+  photoAlt      String?  @db.Text
+  photoFrom     String?
+  photoTo       String?
+  photoEmoji    String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX    Float?
+  photoCropY    Float?
+  photoCropW    Float?
+  photoCropH    Float?
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([categoryOrder, order])
+}
+
+model Achievement {
+  id        String   @id @default(cuid())
+  year      Int
+  title     String
+  recipient String
+  organizer String
+  level     String   // "kabupaten" | "provinsi" | "nasional" | "internasional"
+  // Phase 3b: Photo discriminated union stored as 6 flat columns. Existing
+  // rows backfilled to gradient with a primary-bg default + legacy `icon`
+  // hoisted into photoEmoji.
+  photoKind String   @default("gradient") // "gradient" | "url"
+  photoSrc  String?
+  photoAlt  String?  @db.Text
+  photoFrom String?
+  photoTo   String?
+  photoEmoji String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX Float?
+  photoCropY Float?
+  photoCropW Float?
+  photoCropH Float?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([year, order])
+}
+
+model Extracurricular {
+  id            String   @id @default(cuid())
+  name          String
+  category      String   // "wajib" | "olahraga" | "seni" | "akademik" | "keagamaan" | "lainnya"
+  // Explicit display order per category. Static order: wajib → olahraga →
+  // seni → akademik → keagamaan → lainnya. Alphabetical would put akademik
+  // first. Seed sets categoryOrder by enum index.
+  categoryOrder Int      @default(0)
+  description   String   @db.Text
+  pembina       String
+  schedule      String
+  achievement   String?
+  // Phase 3b: Photo discriminated union stored as 6 flat columns. Existing
+  // rows backfilled to the gradient branch with a neutral default colour pair
+  // and the old `icon` field hoisted into photoEmoji.
+  photoKind    String   @default("gradient") // "gradient" | "url"
+  photoSrc     String?
+  photoAlt     String?  @db.Text
+  photoFrom    String?
+  photoTo      String?
+  photoEmoji   String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX   Float?
+  photoCropY   Float?
+  photoCropW   Float?
+  photoCropH   Float?
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([categoryOrder, order])
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  // One row per subject (no per-grade duplication). Which grades teach it, and
+  // the JP for each, live together in hoursByGrade, e.g. {"7":"5 JP","9":"6 JP"}.
+  // A grade key present = taught in that grade.
+  group        String   // SubjectGroupKey: "wajib" | "pengembangan"
+  name         String
+  icon         String
+  iconBg       String
+  hoursByGrade Json     // Record<"7"|"8"|"9", string>
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([order])
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String   @db.Text
+  answer    String   @db.Text
+  category  String   // "akademik" | "administrasi" | "lainnya"
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category, order])
+}
+
+model Mading {
+  id        String   @id @default(cuid())
+  title     String   @db.Text
+  body      String?  @db.Text          // multi-paragraph; null = image-only post
+  images    Json                        // MadingImage[] : [{ src, alt }]
+  order     Int      @default(0)        // reserved for optional manual reorder
+  createdAt DateTime @default(now())    // post date + default sort key
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+model GalleryItem {
+  id           String   @id @default(cuid())
+  caption      String   @db.Text
+  // Phase 3b: Photo discriminated union stored as 6 flat columns.
+  // Existing rows backfilled to the gradient branch from the old
+  // emoji/gradientFrom/gradientTo columns (now dropped).
+  photoKind    String   @default("gradient") // "gradient" | "url"
+  photoSrc     String?
+  photoAlt     String?  @db.Text
+  photoFrom    String?
+  photoTo      String?
+  photoEmoji   String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX   Float?
+  photoCropY   Float?
+  photoCropW   Float?
+  photoCropH   Float?
+  category     String?  // optional category tag (e.g. "akademik", "ekskul", "fasilitas")
+  span         String?  // "wide" | "tall" | "normal" — visual hint
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category, order])
+}
+
+model Facility {
+  id           String   @id @default(cuid())
+  kind         String   // "featured" | "mini"
+  name         String
+  description  String?  @db.Text // only used when kind="featured"
+  // Phase 3b: featured kind's photo migrates from flat emoji/gradient* to
+  // the shared 6-column Photo discriminated union. Mini kind stays icon-only.
+  // The per-kind invariant (featured → photo set, no icon; mini → icon, no
+  // photo) is enforced application-side by the facilitySchema discriminated
+  // union (src/lib/validation/schemas/entities/facility.ts).
+  photoKind    String?  // "gradient" | "url" — only set when kind="featured"
+  photoSrc     String?
+  photoAlt     String?  @db.Text
+  photoFrom    String?
+  photoTo      String?
+  photoEmoji   String?
+  // Phase 4: normalized crop region (0–1). Null = uncropped (center-fill).
+  photoCropX   Float?
+  photoCropY   Float?
+  photoCropW   Float?
+  photoCropH   Float?
+  span         String?  // only used when kind="featured" — "wide" | "tall" | "normal"
+  icon         String?  // only used when kind="mini"
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([kind, order])
+}
+
+model OrganizationMember {
+  id        String                @id @default(cuid())
+  name      String
+  role      String                // job title shown in org chart
+  level     Int                   // depth in chart, 0 = top
+  parentId  String?
+  parent    OrganizationMember?   @relation("OrgTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  OrganizationMember[]  @relation("OrgTree")
+  order     Int                   @default(0)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([level, order])
+}
+
+model DocumentSlot {
+  id        String      @id  // "kalender-akademik" | "tata-tertib"
+  mediaId   String?
+  // SetNull: deleting a MediaAsset clears the slot rather than blocking deletion
+  // or cascading the document slot itself away (the slot is identity, not content).
+  media     MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  updatedAt DateTime    @updatedAt
+  updatedBy String?
+
+  @@index([mediaId])
+}
+
+// ─── Phase 1: Media skeleton (used in Phase 3) ───
+// Included now so Phase 3 doesn't need its own migration.
+
+model MediaAsset {
+  id            String         @id @default(cuid())
+  kind          String         // "image" | "pdf"
+  url           String         @db.VarChar(500) // full Cloudinary secure_url; can exceed 191
+  publicId      String         @unique @db.VarChar(255) // unique → bounded length (no @db.Text)
+  hash          String         @unique @db.VarChar(255) // unique → bounded length
+  alt           String?        @db.Text
+  filename      String         @db.VarChar(255)
+  sizeBytes     Int
+  mimeType      String
+  width         Int?
+  height        Int?
+  uploadedBy    String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  usages        MediaUsage[]
+  documentSlots DocumentSlot[]
+}
+
+model MediaUsage {
+  id          String     @id @default(cuid())
+  mediaId     String
+  usedInTable String
+  usedInId    String
+  usedInField String
+  media       MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, usedInTable, usedInId, usedInField])
+  @@index([mediaId])
+  @@index([usedInTable, usedInId])
+}

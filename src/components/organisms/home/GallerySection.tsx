@@ -9,19 +9,11 @@ export function GallerySection({ data }: { data: HomePageConfig['gallery'] }) {
     <section className="bg-white py-24">
       <Container>
         <SectionHeading eyebrow={data.meta.eyebrow} title={data.meta.title} subtitle={data.meta.subtitle} />
-        <div className="grid auto-rows-[180px] grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {data.items.map((item, idx) => (
-            <GalleryItem
-              key={item.id}
-              data={item}
-              className={
-                idx === 0
-                  ? 'sm:col-span-2 sm:row-span-2 row-span-2'
-                  : item.span === 'wide'
-                    ? 'sm:col-span-2'
-                    : ''
-              }
-            />
+        {/* Phase 4: uniform 4:3 grid — every card is the same size (span/2x2
+            mosaic dropped) for an even, easy-to-manage gallery. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {data.items.map((item) => (
+            <GalleryItem key={item.id} data={item} />
           ))}
         </div>
         <div className="mt-10 text-center">

@@ -23,6 +23,18 @@ const config = {
     './src/lib/': { branches: 70, functions: 70, lines: 70, statements: 70 },
   },
   testMatch: ['<rootDir>/src/__tests__/**/*.test.{ts,tsx}'],
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/src/__tests__/integration/'],
 };
 
-module.exports = createJestConfig(config);
+// next/jest sets transformIgnorePatterns that excludes all of node_modules.
+// We need to allow ESM-only packages (e.g. @t3-oss/env-*) through SWC.
+module.exports = async () => {
+  const baseConfig = await createJestConfig(config)();
+  return {
+    ...baseConfig,
+    transformIgnorePatterns: [
+      '/node_modules/(?!(@t3-oss/env-nextjs|@t3-oss/env-core)/)',
+      '^.+\\.module\\.(css|sass|scss)$',
+    ],
+  };
+};

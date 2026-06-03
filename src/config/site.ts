@@ -11,7 +11,7 @@ export const siteConfig: SiteConfig = {
     logoMark: 'S3K',
   },
   navigation,
-  ppdbCta: { label: 'Info PPDB', href: '/kontak' },
+  kontakCta: { label: 'Kontak', href: '/kontak' },
   contact: {
     // TODO: replace with real data
     address: 'Jl. Raya Kresek No. 15, Kresek, Tangerang, Banten 15620',

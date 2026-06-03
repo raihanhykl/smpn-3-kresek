@@ -9,12 +9,23 @@ export function PetaSection({ data }: { data: ContactPageConfig['peta'] }) {
       <Container>
         <SectionHeading eyebrow={data.meta.eyebrow} title={data.meta.title} subtitle={data.meta.subtitle} />
         <div className="overflow-hidden rounded-lg border border-neutral-200 bg-gradient-to-br from-primary-bg to-white shadow-md">
-          <div className="flex min-h-[400px] flex-col items-center justify-center px-6 py-16 text-center">
-            <span className="text-7xl" aria-hidden>
-              🗺️
-            </span>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-neutral-600">{data.placeholderText}</p>
-          </div>
+          {data.mapEmbedUrl ? (
+            <iframe
+              src={data.mapEmbedUrl}
+              title="Lokasi SMPN 3 Kresek di Google Maps"
+              className="min-h-[400px] w-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          ) : (
+            <div className="flex min-h-[400px] flex-col items-center justify-center px-6 py-16 text-center">
+              <span className="text-7xl" aria-hidden>
+                🗺️
+              </span>
+              <p className="mt-4 max-w-md text-sm leading-relaxed text-neutral-600">{data.placeholderText}</p>
+            </div>
+          )}
         </div>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <LinkButton href={data.primaryAction.href} variant="primary" size="sm" target="_blank" rel="noopener noreferrer">

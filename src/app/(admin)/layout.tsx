@@ -1,17 +1,12 @@
-import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { ImagePickerProvider } from '@/components/admin/media/ImagePickerProvider';
 
 /**
- * Admin route group — disabled in static mode.
- * When NEXT_PUBLIC_DATA_SOURCE !== "api", any /admin/* route resolves to
- * the global 404 page so that the static export build remains clean.
+ * Admin route group layout. Auth guard lives in middleware.ts.
  *
- * When the future Node/Express backend lands, set NEXT_PUBLIC_DATA_SOURCE=api
- * and the admin tree activates without any code changes here.
+ * Phase 3: ImagePickerProvider mounts a single modal at the layout level so
+ * entity drawers can open + close without unmounting the picker mid-flow.
  */
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  if (process.env.NEXT_PUBLIC_DATA_SOURCE !== 'api') {
-    notFound();
-  }
-  return <>{children}</>;
+  return <ImagePickerProvider>{children}</ImagePickerProvider>;
 }

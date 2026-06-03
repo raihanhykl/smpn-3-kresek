@@ -3,6 +3,20 @@
  * Discriminated unions are used so future Prisma models can map 1:1.
  */
 
+// ─── Document slot (Phase 3) ───
+// Public-side projection of a DocumentSlot + its linked MediaAsset (when set).
+// The assembler populates this from getDocumentSlotWithMedia; public sections
+// hide their download button when `media` is null.
+export interface DocumentSlotMedia {
+  id: string;
+  kind: 'image' | 'pdf';
+  publicId: string;
+  filename: string;
+  sizeBytes: number;
+  alt: string | null;
+}
+export type DocumentSlotPublic = { id: string; media: DocumentSlotMedia | null } | null;
+
 // ─── Shared primitives ───
 
 export interface CtaLink {
@@ -32,7 +46,8 @@ export type Route =
   | '/profil'
   | '/akademik'
   | '/fasilitas'
-  | '/kontak';
+  | '/kontak'
+  | '/mading';
 
 export interface NavItem {
   label: string;
@@ -90,7 +105,7 @@ export interface FooterCredit {
 export interface SiteConfig {
   brand: BrandInfo;
   navigation: NavItem[];
-  ppdbCta: { label: string; href: string };
+  kontakCta: { label: string; href: string };
   contact: ContactInfo;
   social: SocialLink[];
   accreditation: AccreditationInfo;
@@ -112,13 +127,38 @@ export interface Achievement {
   recipient: string;
   organizer: string;
   level: AchievementLevel;
-  icon: string;
+  /**
+   * Phase 3b: discriminated union — gradient kind keeps the trophy/medal emoji
+   * (now hosted as photo.emoji); url kind supports sertifikat/photo uploads.
+   */
+  photo: Photo;
 }
 
 export type TeacherCategory = 'pimpinan' | 'guru' | 'tu';
 
 export type Photo =
-  | { kind: 'url'; src: string; alt: string }
+  | {
+      kind: 'url';
+      src: string;
+      alt: string;
+      // Phase 4: normalized crop region (0–1 fractions of the source image).
+      // All four present together = a crop; all absent = render uncropped
+      // (legacy/center-fill behaviour). cropW/cropH double as zoom (smaller =
+      // more zoomed in).
+      //
+      // NOTE: this type is a deliberate SUPERSET of what is valid. The real
+      // bounds (0–1 range, ≥0.05 size, all-or-nothing, x+w≤1 / y+h≤1) live in
+      // `photoSchema` (src/lib/validation/schemas/shared.ts) — Zod is the source
+      // of truth. Render-time safety is guaranteed by `cropOf()` in cldUrl.ts,
+      // which only returns a crop when all four are present.
+      //
+      // The `| undefined` is explicit (not just `?`) so the type matches Zod's
+      // `.optional()` inference under exactOptionalPropertyTypes.
+      cropX?: number | undefined;
+      cropY?: number | undefined;
+      cropW?: number | undefined;
+      cropH?: number | undefined;
+    }
   | { kind: 'gradient'; from: string; to: string; emoji: string };
 
 export interface Teacher {
@@ -146,10 +186,14 @@ export interface Extracurricular {
   pembina: string;
   schedule: string;
   achievement?: string;
-  icon: string;
+  /**
+   * Phase 3b: discriminated union — gradient kind keeps the legacy emoji
+   * (now hosted as photo.emoji); url kind supports Cloudinary uploads.
+   */
+  photo: Photo;
 }
 
-export type FaqCategory = 'ppdb' | 'akademik' | 'administrasi' | 'lainnya';
+export type FaqCategory = 'akademik' | 'administrasi' | 'lainnya';
 
 export interface Faq {
   id: string;
@@ -158,12 +202,25 @@ export interface Faq {
   category: FaqCategory;
 }
 
+export type MadingImage = { src: string; alt: string };
+
+export type Mading = {
+  id: string;
+  title: string;
+  body?: string | undefined; // omitted when image-only
+  images: MadingImage[];
+  createdAt: string;         // ISO string, serialized at the repo boundary
+};
+
 export interface GalleryItem {
   id: string;
   caption: string;
-  emoji: string;
-  gradientFrom: string;
-  gradientTo: string;
+  /**
+   * Phase 3b: discriminated union — `kind: 'gradient'` (legacy seed default)
+   * stores emoji + from/to colours; `kind: 'url'` stores a Cloudinary publicId
+   * + alt text. Public render goes through `cldUrl(photo.src, 'card')`.
+   */
+  photo: Photo;
   category?: string;
   span?: 'wide' | 'tall' | 'normal';
 }
@@ -186,6 +243,8 @@ export interface HeroConfig {
   primary: CtaLink;
   secondary: CtaLink;
   scrollLabel: string;
+  // Phase 5: optional admin-set faded background photo; absent = brand gradient.
+  photo?: Photo | undefined;
 }
 
 export interface StatCard {
@@ -207,6 +266,8 @@ export interface SambutanConfig {
   signatureTitle: string;
   photoPlaceholderText: string;
   photoEmoji: string;
+  // Phase 5: optional admin-set photo; absent = gradient/emoji placeholder.
+  photo?: Photo | undefined;
 }
 
 export interface AboutConfig {
@@ -218,6 +279,9 @@ export interface AboutConfig {
   badge: string;
   photoMainText: string;
   photoSubText: string;
+  // Phase 5: optional admin-set photos; absent = gradient/emoji placeholder.
+  photoMain?: Photo | undefined;
+  photoSub?: Photo | undefined;
 }
 
 export interface ProgramCard {
@@ -247,6 +311,8 @@ export interface HomePageConfig {
     secondary: CtaLink;
     /** Address string to be copied when secondary action is triggered */
     copyText: string;
+    /** Google Maps embed URL; when set, an iframe is shown instead of the placeholder */
+    mapEmbedUrl?: string;
   };
   ctaFinal: CtaFinal;
 }
@@ -289,7 +355,8 @@ export interface OrgChartConfig {
 }
 
 export interface PageHeaderConfig {
-  breadcrumb: { label: string; href?: string }[];
+  // Optional: omit to render the header without a breadcrumb trail (e.g. /mading).
+  breadcrumb?: { label: string; href?: string }[] | undefined;
   title: string;
   subtitle: string;
 }
@@ -303,6 +370,8 @@ export interface ProfilePageConfig {
     photoPlaceholderText: string;
     photoEmoji: string;
     timeline: TimelineItem[];
+    // Phase 5: optional admin-set photo; absent = gradient/emoji placeholder.
+    photo?: Photo | undefined;
   };
   visiMisi: VisiMisiConfig;
   tujuan: { meta: SectionMeta; cards: ObjectiveCard[] };
@@ -375,6 +444,8 @@ export interface KurikulumConfig {
   floatStat: { value: string; label: string };
   photoEmoji: string;
   photoPlaceholderText: string;
+  // Phase 5: optional admin-set photo; absent = gradient/emoji placeholder.
+  photo?: Photo | undefined;
 }
 
 export interface AcademicPageConfig {
@@ -387,7 +458,7 @@ export interface AcademicPageConfig {
   jadwal: { meta: SectionMeta; cards: ScheduleCard[]; note: string };
   metode: { meta: SectionMeta; cards: MethodCard[] };
   penilaian: { meta: SectionMeta; intro: string; cards: AssessmentCard[] };
-  kalender: { meta: SectionMeta; events: CalendarEvent[]; downloadLabel: string; downloadHref: string };
+  kalender: { meta: SectionMeta; events: CalendarEvent[]; documentSlot: DocumentSlotPublic };
   ctaFinal: CtaFinal;
 }
 
@@ -397,9 +468,11 @@ export interface FacilityCard {
   id: string;
   name: string;
   description: string;
-  emoji: string;
-  gradientFrom: string;
-  gradientTo: string;
+  /**
+   * Phase 3b: featured kind's photo is a Photo discriminated union.
+   * Gradient branch is the legacy default; url branch supports uploads.
+   */
+  photo: Photo;
   span?: 'wide' | 'tall' | 'normal';
 }
 
@@ -444,7 +517,7 @@ export interface FacilitiesPageConfig {
     filterLabels: { all: string; akademik: string; ekskul: string; acara: string; fasilitas: string };
     items: GalleryItem[];
   };
-  tatib: { meta: SectionMeta; accordions: AccordionContent[]; downloadLabel: string; downloadHref: string };
+  tatib: { meta: SectionMeta; accordions: AccordionContent[]; documentSlot: DocumentSlotPublic };
   ctaFinal: CtaFinal;
 }
 
@@ -479,7 +552,7 @@ export interface ContactFormConfig {
 export interface FaqConfig {
   meta: SectionMeta;
   searchPlaceholder: string;
-  filterLabels: { all: string; ppdb: string; akademik: string; administrasi: string; lainnya: string };
+  filterLabels: { all: string; akademik: string; administrasi: string; lainnya: string };
   items: Faq[];
   noResultsText: string;
   ctaText: string;
@@ -499,6 +572,8 @@ export interface ContactPageConfig {
     placeholderText: string;
     primaryAction: CtaLink;
     secondaryAction: CtaLink;
+    /** Google Maps embed URL; when set, an iframe is shown instead of the placeholder */
+    mapEmbedUrl?: string;
   };
   form: ContactFormConfig;
   faq: FaqConfig;

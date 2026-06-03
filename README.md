@@ -2,7 +2,39 @@
 
 Website resmi **SMP Negeri 3 Kresek** (Kecamatan Kresek, Kabupaten Tangerang, Banten) — dibangun sebagai bagian dari project PKM (Pengabdian kepada Masyarakat).
 
-Site ini adalah static-export Next.js dengan content yang **fully config-driven**: non-developer bisa mengedit semua copy, daftar guru, ekstrakurikuler, prestasi, FAQ, dst. hanya dengan menyentuh file di `src/config/`.
+## Status
+
+**Phase 2a (Admin CRUD foundation): ✅ Complete** — admin shell (sidebar + topbar), generic CRUD scaffolding (tabel + side-drawer form + delete-confirm + drag-reorder), server actions dengan cache invalidation + audit, dan CRUD penuh untuk **Guru, Prestasi, FAQ** via UI. Perubahan langsung muncul di public site. Foto pakai gradient + emoji picker (upload foto asli di Phase 3). Phase 2b akan menambah entity sisanya (Ekstrakurikuler, Mata Pelajaran, Galeri, Fasilitas, Struktur Organisasi) + editor SiteConfig/Navigation.
+
+**Phase 1 (Data migration): ✅ Complete** — public site now reads all content from Postgres via `ApiContentProvider` (`NEXT_PUBLIC_DATA_SOURCE=api`). Visual regression tests confirm no drift from Phase 0. CTA "Info PPDB" diganti "Kontak". Seed script populates DB dari `src/config/` (idempotent).
+
+**Phase 0 (Foundation): ✅ Complete** — server runtime + Postgres + Prisma, NextAuth v5 (Edge/Node split) + bcrypt, login flow, force-password-change flow, audit log, middleware auth guard, health check, idempotent seed, Playwright E2E + Jest integration tests, GitHub Actions CI, Hostinger VPS deploy script.
+
+Phase 3 selanjutnya: media library + upload foto (Cloudinary). Phase 4: inline editor à la Notion. Lihat [docs/superpowers/specs/](./docs/superpowers/specs/) dan [docs/superpowers/plans/](./docs/superpowers/plans/) untuk roadmap lengkap.
+
+### Phase 1 deployment notes
+
+**⚠️ WAJIB**: Set `NEXT_PUBLIC_DATA_SOURCE=api` di production env (PM2 ecosystem file atau systemd env) sebelum first Phase 1 deploy. Tanpa ini, site tetap render dari StaticContentProvider (stale snapshot dari src/config/) — admin edits di Phase 2+ tidak akan muncul.
+
+**Verify production env**:
+```bash
+# Di VPS, sebelum deploy:
+echo $NEXT_PUBLIC_DATA_SOURCE   # harus "api"
+```
+
+**First-time deploy flow** (deploy script handle ini otomatis):
+1. `prisma migrate deploy` — apply schema
+2. `npm run db:seed:content` — populate dari src/config/ (idempotent)
+3. `npm run build` — production build dengan api source
+4. `pm2 reload smpn3`
+
+**Dev lokal**: setelah migrate, jalankan `DATABASE_URL="..." npm run db:seed:content` dan set `NEXT_PUBLIC_DATA_SOURCE=api` di `.env.local`.
+
+**⚠️ Phase 2 caveat**: deploy script saat ini selalu re-seed dari src/config/. Setelah Phase 2 (admin CRUD) ship, edit production data via admin UI akan **overwritten** oleh deploy. Phase 2 plan akan mengkonditionalisasi seed (e.g., hanya kalau marker row absent, atau hapus step ini dari deploy.sh).
+
+> 📘 **Baru di Next.js full-stack?** Lihat dev guide untuk Express developers:
+> - [docs/dev-guide/nextjs-untuk-express-developer.md](./docs/dev-guide/nextjs-untuk-express-developer.md) — peta padanan konsep Express ↔ Next.js
+> - [docs/dev-guide/walkthrough-phase-0.md](./docs/dev-guide/walkthrough-phase-0.md) — line-by-line walk-through code Phase 0
 
 ---
 
@@ -165,7 +197,7 @@ interface ContentProvider {
 Saat ini terdapat dua implementasi:
 
 - `StaticContentProvider` — membaca dari typed configs di `src/config/`. Aktif saat `NEXT_PUBLIC_DATA_SOURCE=static` (default).
-- `ApiContentProvider` — **stub** untuk future Node/Express/Prisma/Postgres backend. Setiap method-nya melempar "not implemented yet".
+- `ApiContentProvider` — **stub** untuk future Node/Express/Prisma/MySQL backend. Setiap method-nya melempar "not implemented yet".
 
 Factory `getContentProvider()` membaca env var dan mengembalikan implementasi yang sesuai (di-cache untuk lifetime process).
 
@@ -178,13 +210,12 @@ Saat backend siap:
 3. Set env var:
    ```bash
    NEXT_PUBLIC_DATA_SOURCE=api
-   NEXT_PUBLIC_API_BASE_URL=https://api.smpn3kresek.sch.id/v1
    ```
 4. Tidak ada perubahan di sisi UI: setiap page sudah `await provider.getXxxPage()`.
 
 ### Future Prisma schema sketch
 
-Entity shapes di `types.ts` sudah didesain agar mapping ke Postgres tabel realistis:
+Entity shapes di `types.ts` sudah didesain agar mapping ke MySQL tabel realistis:
 
 - `Teacher` → `teachers (id, name, position, badge, category, photo_kind, photo_src, ...)`
 - `Achievement` → `achievements (id, year, title, recipient, organizer, level, icon)`
@@ -230,7 +261,6 @@ Threshold: ≥ 70% coverage pada `src/lib/`. Yang ditest:
 | Variable | Default | Description |
 |---|---|---|
 | `NEXT_PUBLIC_DATA_SOURCE` | `static` | `static` atau `api`. Static → membaca dari config. Api → mengaktifkan `ApiContentProvider` dan route `/admin`. |
-| `NEXT_PUBLIC_API_BASE_URL` | `''` | Base URL untuk `ApiContentProvider`. Tidak terpakai dalam mode static. |
 
 Copy [`.env.example`](./.env.example) ke `.env.local` untuk overrides lokal.
 
@@ -258,6 +288,66 @@ aws s3 sync out/ s3://your-bucket/ --delete
 ### Cloudflare Pages
 1. Build command: `npm run build`.
 2. Build output directory: `out`.
+
+````markdown
+### Hostinger VPS deployment
+
+One-time setup on VPS (Ubuntu 22.04+ assumed):
+
+```bash
+# Install Node 22 via nvm + PM2 + MySQL
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+source ~/.bashrc
+nvm install 22.22.0 && nvm use 22.22.0 && nvm alias default 22.22.0
+npm i -g pm2
+
+# MySQL 8 (Ubuntu) — 8.0.16+ recommended
+sudo apt-get install -y mysql-server
+sudo mysql -e "CREATE DATABASE smpn3 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -e "CREATE USER 'smpn3'@'localhost' IDENTIFIED BY 'change-me';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON smpn3.* TO 'smpn3'@'localhost'; FLUSH PRIVILEGES;"
+# DATABASE_URL on MySQL: mysql://smpn3:change-me@localhost:3306/smpn3  (no ?schema= param)
+
+# Clone repo
+sudo mkdir -p /opt/smpn3 && sudo chown $USER /opt/smpn3
+git clone <repo> /opt/smpn3/app
+cd /opt/smpn3/app
+
+# Env vars
+cp .env.example .env.local
+# Edit .env.local — set DATABASE_URL, AUTH_SECRET (openssl rand -base64 32), AUTH_URL
+
+# First deploy
+bash scripts/deploy.sh
+
+# Start with PM2 (NODE_ENV=production is implicit because `next start` defaults to production)
+pm2 start npm --name smpn3 -- start
+pm2 save
+pm2 startup  # follow printed instructions
+
+# Seed first admin
+npm run db:seed
+# Note the temporary password printed; share via WhatsApp; user changes on first login.
+```
+
+Once SSH access is set up, configure GitHub repo secrets `SSH_HOST`, `SSH_USER`, `SSH_KEY` and add the deploy job to `.github/workflows/ci.yml`:
+
+```yaml
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build, integration, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: bash /opt/smpn3/deploy.sh
+```
+
+**Rollback**: SSH into VPS, `cd /opt/smpn3/app && git reset --hard <previous-good-commit-sha> && bash scripts/deploy.sh`. Migrations are not rolled back automatically — use Prisma migration files to author a reverse migration if schema needs to revert.
+````
 
 ---
 
