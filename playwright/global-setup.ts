@@ -48,7 +48,7 @@ export default async function globalSetup() {
   });
   if (existing.length > 0) {
     await prisma.auditLog.deleteMany({
-      where: { userId: { in: existing.map((u) => u.id) } },
+      where: { userId: { in: existing.map((u: { id: string }) => u.id) } },
     });
   }
   await prisma.user.deleteMany({
