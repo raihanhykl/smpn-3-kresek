@@ -12,6 +12,11 @@ import { MadingTeaserSection } from '@components/organisms/home/MadingTeaserSect
 import { LokasiSection } from '@components/organisms/home/LokasiSection';
 import { CtaFinalSection } from '@components/organisms/CtaFinalSection';
 
+// Render at request time, not build time: in `api` data-source mode the
+// content comes from the database (editable via the admin panel), so the page
+// must not be statically prerendered during the build (which has no DB).
+export const dynamic = 'force-dynamic';
+
 // Number of latest Mading posts shown in the home teaser.
 const HOME_MADING_LIMIT = 3;
 

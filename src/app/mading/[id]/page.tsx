@@ -6,6 +6,9 @@ import { PageLayout } from '@components/templates/PageLayout';
 import { Container } from '@components/atoms/Container';
 import { cldUrl } from '@/lib/media/cldUrl';
 
+// Content comes from the DB in `api` mode; render per-request, not at build.
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const post = await getContentProvider().getMadingById(id);

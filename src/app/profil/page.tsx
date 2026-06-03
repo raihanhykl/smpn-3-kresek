@@ -11,6 +11,9 @@ import { GuruSection } from '@components/organisms/profil/GuruSection';
 import { PrestasiGridSection } from '@components/organisms/profil/PrestasiGridSection';
 import { CtaFinalSection } from '@components/organisms/CtaFinalSection';
 
+// Content comes from the DB in `api` mode; render per-request, not at build.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Profil — SMPN 3 Kresek',
   description: 'Sejarah, visi, misi, dan keluarga besar SMPN 3 Kresek.',

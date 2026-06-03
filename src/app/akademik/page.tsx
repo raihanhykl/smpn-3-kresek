@@ -10,6 +10,9 @@ import { PenilaianSection } from '@components/organisms/akademik/PenilaianSectio
 import { KalenderSection } from '@components/organisms/akademik/KalenderSection';
 import { CtaFinalSection } from '@components/organisms/CtaFinalSection';
 
+// Content comes from the DB in `api` mode; render per-request, not at build.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Akademik — SMPN 3 Kresek',
   description: 'Kurikulum, mata pelajaran, metode pembelajaran, dan kalender pendidikan SMPN 3 Kresek.',
