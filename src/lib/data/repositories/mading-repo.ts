@@ -28,7 +28,9 @@ function rowToMading(r: MadingRow): Mading {
 }
 
 async function loadAllMading(): Promise<Mading[]> {
-  const rows = await prisma.mading.findMany({ orderBy: [{ createdAt: 'desc' }] });
+  // id tiebreaker keeps the order deterministic when two rows share a createdAt
+  // millisecond (e.g. created in a tight loop); createdAt desc alone was flaky.
+  const rows = await prisma.mading.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
   return rows.map(rowToMading);
 }
 

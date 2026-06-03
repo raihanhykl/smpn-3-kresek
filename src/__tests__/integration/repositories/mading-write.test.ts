@@ -40,6 +40,9 @@ describe('mading-repo', () => {
     const a = await createMading({ title: 'Lama', images: [{ src: 'smpn3/x', alt: 'x' }] });
     const b = await createMading({ title: 'Baru', images: [{ src: 'smpn3/y', alt: 'y' }] });
     ids.push(a.id, b.id);
+    // Force a provably-older timestamp on `a` so the "newest first" assertion is
+    // deterministic even if both rows were created within the same millisecond.
+    await prisma.mading.update({ where: { id: a.id }, data: { createdAt: new Date('2020-01-01T00:00:00.000Z') } });
     const all = await getAllMading();
     const idxA = all.findIndex((m) => m.id === a.id);
     const idxB = all.findIndex((m) => m.id === b.id);
