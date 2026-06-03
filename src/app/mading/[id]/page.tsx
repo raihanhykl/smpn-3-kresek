@@ -23,9 +23,10 @@ export default async function MadingDetailPage({ params }: { params: Promise<{ i
 
   return (
     <PageLayout site={site} activeRoute="/mading">
-      {/* min-h keeps the footer pinned to the bottom even when a post is short;
-          pt clears the fixed navbar so the content isn't flush against the top. */}
-      <div className="min-h-screen bg-neutral-50 pb-20 pt-28 sm:pt-32">
+      {/* h-full fills the flex-grown <main> so the neutral background covers the
+          slack when a post is short — without adding viewport height (PageLayout
+          already pins the footer). pt clears the fixed navbar. */}
+      <div className="min-h-full bg-neutral-50 pb-20 pt-28 sm:pt-32">
         <Container className="max-w-3xl">
           <Link
             href="/mading"
