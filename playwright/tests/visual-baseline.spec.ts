@@ -74,6 +74,23 @@ async function settleReveals(page: import('@playwright/test').Page) {
   });
 }
 
+// Wait for the data-driven teacher grid to be populated. The GuruSection is the
+// only <section> on /profil with a filter tablist; the grid immediately after it
+// holds one child per teacher. getTeachers() is unstable_cache-wrapped, so on a
+// freshly-seeded server the grid can momentarily render empty (collapsed section),
+// producing a short page. Pages without a tablist (every page but /profil) resolve
+// immediately. We assert >=1 card; the seed always creates the full canonical set,
+// so any non-empty grid means the cache has the real list, not the empty one.
+async function waitForTeacherGrid(page: import('@playwright/test').Page) {
+  await page.waitForFunction(() => {
+    const tablist = document.querySelector('[role="tablist"]');
+    if (!tablist) return true; // page has no teacher grid — nothing to wait for
+    const section = tablist.closest('section');
+    const grid = section?.querySelector('.grid');
+    return !!grid && grid.childElementCount > 0;
+  }, undefined, { timeout: 15_000, polling: 'raf' });
+}
+
 const PAGES = ['/', '/profil', '/akademik', '/fasilitas', '/kontak'];
 
 test.describe('public site visual baseline', () => {
@@ -91,26 +108,17 @@ test.describe('public site visual baseline', () => {
       // Pin scroll-reveal sections to their final state BEFORE measuring height,
       // so the page's full height no longer depends on scroll/observer timing.
       await settleReveals(page);
+      // /profil's GuruSection renders a DB-backed teacher grid whose getTeachers()
+      // is unstable_cache-wrapped. On a freshly-seeded server the cache can briefly
+      // serve an empty list, so the grid (the ~1872px section) renders collapsed —
+      // which is how an under-height 6250px baseline got captured (test runs hit the
+      // populated 7679px state, hence the mismatch). Wait for the teacher grid (the
+      // .grid that follows the filter tablist) to be populated before measuring, so
+      // both baseline-generation and the test capture the same full-height state.
+      await waitForTeacherGrid(page);
       // Then wait until the page stops growing — now a true, scroll-independent
       // settled height (guards against any residual cold-compile reflow too).
       await waitForStableHeight(page);
-      // TEMP DIAGNOSTIC: dump /profil structural counts to pinpoint the 6250 vs
-      // 7679 non-determinism (teacher grid / sections). Remove after root-cause.
-      if (path === '/profil') {
-        const diag = await page.evaluate(() => {
-          const h = document.documentElement.scrollHeight;
-          const tabs = document.querySelectorAll('[role="tab"]').length;
-          // teacher cards: divs holding a teacher name inside the guru grid.
-          const grids = Array.from(document.querySelectorAll('section .grid'));
-          const gridCounts = grids.map((g) => g.children.length);
-          const sections = Array.from(document.querySelectorAll('section')).map(
-            (s) => Math.round((s as HTMLElement).getBoundingClientRect().height),
-          );
-          return { h, tabs, gridCounts, sectionHeights: sections };
-        });
-        // eslint-disable-next-line no-console
-        console.log('VB_DIAG /profil', JSON.stringify(diag));
-      }
       await expect(page).toHaveScreenshot(`${path.replace(/\//g, '_') || '_root'}.png`, {
         fullPage: true,
         // Baselines are generated ON the GitHub `ubuntu-latest` runner (see the

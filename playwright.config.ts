@@ -25,12 +25,20 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   globalSetup: './playwright/global-setup.ts',
   webServer: {
+    // The seed MUST run before `build`. /profil is statically prerendered and bakes
+    // its DB-backed teacher grid (getTeachers, unstable_cache) into the static HTML
+    // at build time. globalSetup also seeds, but Playwright starts the webServer in
+    // parallel with globalSetup — so without seeding here, `build` can prerender
+    // /profil against an unseeded DB and freeze a short (teacher-less) page into the
+    // static output. That race is exactly what produced a 6250px vs 7679px /profil
+    // baseline mismatch. Seeding in-line guarantees the prerender sees the full set.
+    //
     // SKIP_ENV_VALIDATION mirrors the CI `build` job: collecting page data for
     // routes that import src/lib/env.ts (e.g. /api/media/confirm) would otherwise
     // fail validation because Cloudinary creds aren't provisioned for E2E. No E2E
     // test exercises the media routes, so the live server never needs real creds.
     command:
-      'npx prisma generate && SKIP_ENV_VALIDATION=true npm run build && npm run start',
+      'npx prisma generate && npx prisma migrate deploy && npx tsx scripts/seed-content.ts && SKIP_ENV_VALIDATION=true npm run build && npm run start',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
