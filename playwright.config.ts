@@ -25,7 +25,12 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   globalSetup: './playwright/global-setup.ts',
   webServer: {
-    command: 'npx prisma generate && npm run build && npm run start',
+    // SKIP_ENV_VALIDATION mirrors the CI `build` job: collecting page data for
+    // routes that import src/lib/env.ts (e.g. /api/media/confirm) would otherwise
+    // fail validation because Cloudinary creds aren't provisioned for E2E. No E2E
+    // test exercises the media routes, so the live server never needs real creds.
+    command:
+      'npx prisma generate && SKIP_ENV_VALIDATION=true npm run build && npm run start',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
@@ -37,6 +42,12 @@ export default defineConfig({
       AUTH_SECRET: 'e2e-secret-must-be-at-least-thirty-two-chars',
       AUTH_URL: 'http://localhost:3000',
       NEXT_PUBLIC_DATA_SOURCE: 'api',
+      // Placeholder Cloudinary creds so the served runtime can resolve env.ts even
+      // if a future test hits a media route. They never reach Cloudinary — no E2E
+      // currently touches the signer.
+      CLOUDINARY_API_KEY: 'e2e-cloudinary-key',
+      CLOUDINARY_API_SECRET: 'e2e-cloudinary-secret',
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: 'e2e-cloud',
       // E2E runs many logins from a single localhost IP, which all share one
       // rate-limit bucket (prod default is 5/15min). Raise the ceiling for the
       // test deployment only — production keeps the secure default.
