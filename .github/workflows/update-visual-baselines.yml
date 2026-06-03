@@ -71,3 +71,5 @@ jobs:
           git add playwright/tests/visual-baseline.spec.ts-snapshots
           git commit -m "test(e2e): regenerate visual baselines on CI runner [skip ci]"
           git push origin HEAD:${{ github.ref_name }}
+
+# (re-trigger marker — safe to remove)
