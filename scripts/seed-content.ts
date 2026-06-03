@@ -418,6 +418,34 @@ async function main() {
     }
   }
 
+  // Mading: demo posts the school replaces via the admin UI. No real Cloudinary
+  // publicIds are guaranteed to exist, so seed text-only examples with empty
+  // images[] (a fabricated src would 404 in cldUrl). The school adds real photos
+  // through /admin/entities/mading.
+  console.log('==> Seed: Mading');
+  const madingSeed = [
+    {
+      id: 'mading-1',
+      title: 'Selamat Datang di Mading SMPN 3 Kresek',
+      body: 'Mading digital ini berisi berita dan informasi terbaru seputar kegiatan sekolah.\n\nPantau terus halaman ini untuk pengumuman penting, prestasi siswa, dan kegiatan sekolah lainnya.',
+      images: [] as { src: string; alt: string }[],
+    },
+    {
+      id: 'mading-2',
+      title: 'Kegiatan Belajar Mengajar Semester Ini',
+      body: 'Kegiatan belajar mengajar berjalan lancar dengan berbagai program unggulan untuk mengembangkan potensi setiap siswa.',
+      images: [],
+    },
+  ];
+  for (let i = 0; i < madingSeed.length; i++) {
+    const m = madingSeed[i]!;
+    await prisma.mading.upsert({
+      where: { id: m.id },
+      update: { title: m.title, body: m.body, images: m.images, order: i },
+      create: { id: m.id, title: m.title, body: m.body, images: m.images, order: i },
+    });
+  }
+
   console.log('==> Seed: DocumentSlots (empty placeholders)');
   for (const slotId of ['kalender-akademik', 'tata-tertib']) {
     await prisma.documentSlot.upsert({
