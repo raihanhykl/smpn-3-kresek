@@ -4,6 +4,14 @@ import { ImagePickerProvider } from '@/components/admin/media/ImagePickerProvide
 import { useImagePicker } from '@/components/admin/media/useImagePicker';
 import type { PickedMedia } from '@/components/admin/media/types';
 
+// ImagePickerModal now imports deleteMediaAction (per-card delete button). That
+// server action transitively pulls in the @auth/core ESM chain, which the unit jest
+// transform doesn't process — so mock it. This suite exercises pick/upload, not delete.
+const mockDeleteMedia = jest.fn();
+jest.mock('@/app/(admin)/admin/media/_actions/media-actions', () => ({
+  deleteMediaAction: (...args: unknown[]) => mockDeleteMedia(...args),
+}));
+
 // Minimal fetch mock: route /api/media/list responses via the test harness.
 function mockListResponse(items: Array<{ id: string; publicId: string; alt: string | null; filename: string; kind?: string }>) {
   (global as unknown as { fetch: jest.Mock }).fetch = jest.fn().mockResolvedValue({

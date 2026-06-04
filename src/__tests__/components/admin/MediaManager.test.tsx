@@ -109,7 +109,8 @@ describe('MediaManager', () => {
     await waitFor(() =>
       expect(screen.getByRole('dialog', { name: 'Berkas masih dipakai' })).toBeInTheDocument(),
     );
-    expect(screen.getByText(/Teacher/)).toBeInTheDocument();
+    // Usage now renders the friendly label (usageLabel) instead of the raw table name.
+    expect(screen.getByText('Guru')).toBeInTheDocument();
   });
 
   it('broken-image onerror swaps to error badge; ADMIN sees Hapus catatan', async () => {

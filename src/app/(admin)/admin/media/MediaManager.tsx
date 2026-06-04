@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Role } from '@prisma/client';
 import { cldUrl } from '@/lib/media/cldUrl';
+import { usageLabel } from '@/lib/media/usage-label';
 import { mapActionError } from '@/components/admin/mapActionError';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
@@ -295,9 +296,7 @@ export function MediaManager({ role }: { role: Role }) {
             </p>
             <ul className="mt-3 max-h-48 list-disc overflow-y-auto pl-5 text-sm text-neutral-700">
               {usageBlock.usage.map((u, i) => (
-                <li key={i}>
-                  {u.usedInTable} <code className="text-xs text-neutral-500">#{u.usedInId}</code> / {u.usedInField}
-                </li>
+                <li key={i}>{usageLabel(u)}</li>
               ))}
             </ul>
             <div className="mt-4 flex justify-end">
