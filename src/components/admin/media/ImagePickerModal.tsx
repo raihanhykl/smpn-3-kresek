@@ -5,6 +5,9 @@ import { cldUrl } from '@/lib/media/cldUrl';
 import type { ImagePickerKind, PickedMedia } from './types';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
 import { UploadButton } from './UploadButton';
+import { deleteMediaAction, detachMediaUsageAction } from '@/app/(admin)/admin/media/_actions/media-actions';
+import { usageLabel } from '@/lib/media/usage-label';
+import type { UsageRow } from '@/lib/media/detach-usage';
 
 /**
  * Phase 3 ImagePickerModal — modal grid of MediaAsset rows of the requested
@@ -24,6 +27,12 @@ export function ImagePickerModal({ kind, onPick }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadReady, setUploadReady] = useState<boolean | null>(null);
+  // id -> transient delete UI state for that card
+  const [cardState, setCardState] = useState<Record<string, {
+    status: 'idle' | 'confirming' | 'deleting';
+    usage?: UsageRow[];
+    error?: string;
+  }>>({});
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -53,6 +62,33 @@ export function ImagePickerModal({ kind, onPick }: Props) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onPick]);
+
+  function setCard(id: string, s: { status: 'idle' | 'confirming' | 'deleting'; usage?: UsageRow[]; error?: string }) {
+    setCardState((prev) => ({ ...prev, [id]: s }));
+  }
+
+  async function handleDelete(id: string) {
+    setCard(id, { status: 'deleting' });
+    const r = await deleteMediaAction(id);
+    if (!r.ok) {
+      setCard(id, { status: 'idle', error: 'Gagal menghapus. Coba lagi.' });
+      return;
+    }
+    if (r.data.deleted) {
+      await refresh(); // photo gone from grid
+    } else {
+      // In use — list EVERY location (one entry per usage row, no label dedupe).
+      setCard(id, { status: 'idle', usage: r.data.usage });
+    }
+  }
+
+  async function handleDetach(id: string, row: UsageRow) {
+    setCard(id, { status: 'deleting' });
+    const r = await detachMediaUsageAction({ mediaId: id, ...row });
+    if (!r.ok) { setCard(id, { status: 'idle', error: 'Gagal melepaskan. Coba lagi.' }); return; }
+    // Re-attempt delete to recompute the (now shorter) usage list or finish deleting.
+    await handleDelete(id);
+  }
 
   return (
     <div
@@ -137,6 +173,53 @@ export function ImagePickerModal({ kind, onPick }: Props) {
                     >
                       Pilih
                     </button>
+
+                    {(() => {
+                      const st = cardState[m.id] ?? { status: 'idle' as const };
+                      if (st.status === 'confirming') {
+                        return (
+                          <div className="mt-1 flex gap-1">
+                            <button type="button" onClick={() => handleDelete(m.id)} className="flex-1 rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700">Ya, hapus</button>
+                            <button type="button" onClick={() => setCard(m.id, { status: 'idle' })} className="flex-1 rounded border border-neutral-300 px-2 py-1 text-xs">Batal</button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <button
+                          type="button"
+                          disabled={st.status === 'deleting'}
+                          onClick={() => setCard(m.id, { status: 'confirming' })}
+                          className="mt-1 w-full rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {st.status === 'deleting' ? 'Menghapus…' : '🗑 Hapus'}
+                        </button>
+                      );
+                    })()}
+
+                    {cardState[m.id]?.usage ? (
+                      <div className="mt-1 rounded border border-amber-200 bg-amber-50 p-1.5">
+                        <p className="text-[11px] leading-snug text-amber-800">
+                          Foto ini masih digunakan. Lepaskan dari setiap lokasi sebelum menghapus.
+                        </p>
+                        <ul className="mt-1 space-y-1">
+                          {cardState[m.id]!.usage!.map((row, i) => (
+                            <li key={i} className="flex items-center justify-between gap-2 text-[11px]">
+                              <span className="truncate text-neutral-700">{usageLabel(row)}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDetach(m.id, row)}
+                                className="shrink-0 rounded border border-amber-300 px-1.5 py-0.5 font-medium text-amber-800 hover:bg-amber-100"
+                              >
+                                Lepaskan
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {cardState[m.id]?.error ? (
+                      <p className="mt-1 text-[11px] text-red-600">{cardState[m.id]!.error}</p>
+                    ) : null}
                   </div>
                 </li>
               ))}

@@ -425,17 +425,6 @@ export interface AssessmentCard {
   badge: string;
 }
 
-export type CalendarEventType = 'kbm' | 'ujian' | 'libur' | 'acara';
-
-export interface CalendarEvent {
-  id: string;
-  date: string;
-  title: string;
-  type: CalendarEventType;
-  typeLabel: string;
-  sub: string;
-}
-
 export interface KurikulumConfig {
   eyebrow: string;
   title: string;
@@ -458,7 +447,7 @@ export interface AcademicPageConfig {
   jadwal: { meta: SectionMeta; cards: ScheduleCard[]; note: string };
   metode: { meta: SectionMeta; cards: MethodCard[] };
   penilaian: { meta: SectionMeta; intro: string; cards: AssessmentCard[] };
-  kalender: { meta: SectionMeta; events: CalendarEvent[]; documentSlot: DocumentSlotPublic };
+  kalender: { meta: SectionMeta; documentSlot: DocumentSlotPublic };
   ctaFinal: CtaFinal;
 }
 

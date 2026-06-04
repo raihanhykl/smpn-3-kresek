@@ -5,6 +5,9 @@ import { PageHeader } from '@components/organisms/PageHeader';
 import { Container } from '@components/atoms/Container';
 import { MadingList } from '@components/organisms/mading/MadingList';
 
+// Content comes from the DB in `api` mode; render per-request, not at build.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Mading — SMPN 3 Kresek',
   description: 'Berita dan informasi terbaru seputar SMPN 3 Kresek.',

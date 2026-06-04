@@ -127,15 +127,15 @@ export const profilPageConfig: ProfilePageConfig = {
       { label: 'NPSN', value: '20604XXX' },
       { label: 'Status', value: 'Negeri', badge: 'negeri' },
       { label: 'Akreditasi', value: 'Terakreditasi', badge: 'akreditasi' },
-      { label: 'Alamat', value: 'Jl. Raya Kresek No. 15, Kresek' },
+      { label: 'Alamat', value: 'Jl. Raya Kresek - Gandaria' },
       { label: 'Kecamatan', value: 'Kresek' },
       { label: 'Kabupaten', value: 'Tangerang' },
       { label: 'Provinsi', value: 'Banten' },
       { label: 'Kode Pos', value: '15620' },
-      { label: 'Email', value: 'info@smpn3kresek.sch.id' },
+      { label: 'Email', value: 'smpn3kresek.official@gmail.com' },
       { label: 'Website', value: 'www.smpn3kresek.sch.id' },
       // TODO: replace with real Kepsek
-      { label: 'Kepala Sekolah', value: 'Drs. H. Ahmad Suherman, M.Pd.' },
+      { label: 'Kepala Sekolah', value: 'Tri Wahono, S.Pd.' },
       { label: 'Jumlah Rombel', value: '12 Rombongan Belajar' },
       { label: 'Kurikulum', value: 'Kurikulum Merdeka' },
     ],
@@ -149,7 +149,7 @@ export const profilPageConfig: ProfilePageConfig = {
     chart: {
       levels: [
         // TODO: confirm real names + titles
-        { id: 'l0', boxes: [{ name: 'Drs. H. Ahmad Suherman, M.Pd.', title: 'Kepala Sekolah' }] },
+        { id: 'l0', boxes: [{ name: 'Tri Wahono, S.Pd.', title: 'Kepala Sekolah' }] },
         {
           id: 'l1',
           boxes: [
@@ -189,15 +189,15 @@ export const profilPageConfig: ProfilePageConfig = {
     teachers: [
       {
         id: 'p1',
-        name: 'Drs. H. Ahmad Suherman',
+        name: 'Tri Wahono, S.Pd.',
         position: 'Kepala Sekolah',
-        badge: 'M.Pd.',
+        badge: 'S.Pd.',
         category: 'pimpinan',
         photo: { kind: 'gradient', from: '#DBEAFE', to: '#93C5FD', emoji: '👨‍💼' },
       },
       {
         id: 'p2',
-        name: 'Hj. Siti Fatimah, S.Pd.',
+        name: 'Imam Santoso, S.Kom.',
         position: 'Wakasek Kurikulum',
         badge: 'S.Pd.',
         category: 'pimpinan',

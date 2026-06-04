@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Container } from '@components/atoms/Container';
 import type { SiteConfig } from '@config/types';
 
@@ -9,8 +10,14 @@ export function Footer({ site }: { site: SiteConfig }) {
         <div className="grid gap-12 border-b border-white/10 pb-14 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] lg:gap-12">
           <div className="max-w-xs">
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-md bg-primary font-heading text-base font-extrabold text-white">
-                {site.brand.shortName}
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md">
+                <Image
+                  height={44}
+                  width={44}
+                  src="/images/logo/smpn3kresek-logo.png"
+                  alt={`Logo ${site.brand.name}`}
+                  className="h-full w-full object-cover"
+                />
               </div>
               <div>
                 <div className="font-heading text-[15px] font-bold leading-tight text-white">{site.brand.name}</div>

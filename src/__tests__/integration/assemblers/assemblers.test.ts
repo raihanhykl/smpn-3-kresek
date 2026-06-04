@@ -53,7 +53,9 @@ describe('page assemblers (post-seed)', () => {
     expect(academic.mapel.tabs).toHaveLength(3);
     expect(academic.mapel.tabs[0]?.id).toBe('kelas7');
     expect(academic.mapel.tabs[0]?.groups.length).toBeGreaterThan(0);
-    expect(academic.kalender.events.length).toBeGreaterThan(0);
+    // Kalender pendidikan is PDF-only now (no event cards); documentSlot is sourced
+    // from the DocumentSlot ('kalender-akademik') — null when no PDF is uploaded.
+    expect(academic.kalender).toHaveProperty('documentSlot');
   });
 
   it('assembleFacilities returns full ordered galeri; ekskul ordered by category sequence', async () => {

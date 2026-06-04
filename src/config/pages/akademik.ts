@@ -185,7 +185,7 @@ export const akademikPageConfig: AcademicPageConfig = {
     cards: [
       {
         id: 'j1',
-        icon: '🌅',
+        icon: '',
         bgClass: 'primary',
         title: 'Hari & Jam Sekolah',
         items: [
@@ -198,7 +198,7 @@ export const akademikPageConfig: AcademicPageConfig = {
       },
       {
         id: 'j2',
-        icon: '☕',
+        icon: '',
         bgClass: 'secondary',
         title: 'Waktu Istirahat',
         items: [
@@ -287,85 +287,12 @@ export const akademikPageConfig: AcademicPageConfig = {
     meta: {
       eyebrow: 'KALENDER',
       title: 'Kalender Pendidikan',
-      subtitle: 'Tahun Ajaran 2025/2026',
+      subtitle: 'Unduh kalender pendidikan resmi tahun ajaran berjalan',
     },
-    events: [
-      {
-        id: 'c1',
-        date: 'Juli 2025',
-        title: 'Awal Tahun Ajaran 2025/2026',
-        type: 'kbm',
-        typeLabel: 'KBM',
-        sub: 'MPLS (Masa Pengenalan Lingkungan Sekolah) untuk kelas 7',
-      },
-      {
-        id: 'c2',
-        date: 'Agustus 2025',
-        title: 'Peringatan HUT RI ke-80',
-        type: 'acara',
-        typeLabel: 'Acara',
-        sub: 'Upacara bendera dan berbagai kegiatan kemerdekaan',
-      },
-      {
-        id: 'c3',
-        date: 'Sept–Okt 2025',
-        title: 'Penilaian Tengah Semester Ganjil',
-        type: 'ujian',
-        typeLabel: 'Ujian',
-        sub: 'PTS Semester Ganjil T.A. 2025/2026',
-      },
-      {
-        id: 'c4',
-        date: 'Nov–Des 2025',
-        title: 'Penilaian Akhir Semester Ganjil',
-        type: 'ujian',
-        typeLabel: 'Ujian',
-        sub: 'PAS Semester Ganjil dan pembagian rapor',
-      },
-      {
-        id: 'c5',
-        date: 'Des 2025',
-        title: 'Libur Semester Ganjil',
-        type: 'libur',
-        typeLabel: 'Libur',
-        sub: 'Libur akhir semester dan Natal/Tahun Baru',
-      },
-      {
-        id: 'c6',
-        date: 'Jan 2026',
-        title: 'Awal Semester Genap',
-        type: 'kbm',
-        typeLabel: 'KBM',
-        sub: 'Dimulainya kegiatan belajar mengajar semester genap',
-      },
-      {
-        id: 'c7',
-        date: 'Mar–Apr 2026',
-        title: 'Ujian Sekolah Kelas 9',
-        type: 'ujian',
-        typeLabel: 'Ujian',
-        sub: 'US dan Asesmen Sumatif Akhir Jenjang (ASAJ)',
-      },
-      {
-        id: 'c8',
-        date: 'Mei–Jun 2026',
-        title: 'PAT & Pelepasan Kelas 9',
-        type: 'acara',
-        typeLabel: 'Acara',
-        sub: 'Penilaian Akhir Tahun, pelepasan siswa kelas 9, dan pembagian rapor',
-      },
-      {
-        id: 'c9',
-        date: 'Jun–Jul 2026',
-        title: 'Libur Akhir Tahun Ajaran',
-        type: 'libur',
-        typeLabel: 'Libur',
-        sub: 'Libur kenaikan kelas dan persiapan tahun ajaran baru',
-      },
-    ],
-    // Phase 3: download is sourced from DocumentSlot 'kalender-akademik' at
-    // assembler runtime via getDocumentSlotWithMedia. Static config holds null
-    // so the static-mode build still type-checks; the assembler overwrites it.
+    // Kalender pendidikan is delivered solely as an uploaded PDF (admin → Dokumen).
+    // No hardcoded event cards. The PDF is sourced from DocumentSlot
+    // 'kalender-akademik' at assembler runtime; static config holds null so the
+    // static-mode build still type-checks; the assembler overwrites it.
     documentSlot: null,
   },
   ctaFinal: {

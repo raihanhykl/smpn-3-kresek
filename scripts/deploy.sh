@@ -25,10 +25,13 @@ npx prisma generate
 echo "==> Run migrations"
 npx prisma migrate deploy
 
-echo "==> Seed content (Phase 1: idempotent population from src/config/)"
-# TODO Phase 2: when admin CRUD ships, this will overwrite admin edits on every deploy.
-# Conditionalize (e.g., only run if no admin-edited marker row) or remove from deploy.sh.
-npm run db:seed:content
+# NOTE: content seeding is intentionally NOT run on routine deploys. Admin CRUD is
+# live, so production holds real school-entered data (teachers, photos, etc.). Running
+# the seed here would at best be a no-op (entity seeds are now create-only) and at
+# worst risk clobbering data. The seed is a ONE-TIME setup for a fresh DB — run it
+# manually on first provisioning only:
+#     npm run db:seed          # creates the first admin user
+#     npm run db:seed:content  # populates demo/initial content into an empty DB
 
 echo "==> Build"
 npm run build

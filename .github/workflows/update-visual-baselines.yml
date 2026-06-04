@@ -1,0 +1,74 @@
+name: Update visual baselines
+
+# Regenerates the Playwright visual baselines ON the GitHub `ubuntu-latest`
+# runner — the only environment whose Chromium + font stack matches the CI `e2e`
+# job pixel-for-pixel. Run this (Actions ▸ "Update visual baselines" ▸ Run
+# workflow) on the branch whose pages changed; it commits the refreshed
+# *-chromium-linux.png snapshots back to that branch.
+#
+# Why a workflow and not a local run: baselines generated on a dev machine (macOS)
+# or in the playwright Docker image do NOT match this runner's font anti-aliasing,
+# so they fail the e2e diff. Generating here guarantees a match.
+
+on:
+  workflow_dispatch:
+
+# Allow the job to push the regenerated baselines back to the branch.
+permissions:
+  contents: write
+
+jobs:
+  update-baselines:
+    name: Regenerate baselines on CI runner
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: smpn3_test
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ptest"
+          --health-interval=2s
+          --health-timeout=2s
+          --health-retries=15
+    env:
+      DATABASE_URL: mysql://test:test@localhost:3306/smpn3_test
+      AUTH_SECRET: ci-secret-must-be-at-least-thirty-two-chars-long
+      AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_DATA_SOURCE: static
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      # Regenerate only the visual baselines, on this runner, against the same
+      # webServer build + seed the e2e job uses.
+      - run: npm run e2e -- playwright/tests/visual-baseline.spec.ts --update-snapshots
+      - name: Commit regenerated baselines
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- playwright/tests; then
+            echo "No baseline changes to commit."
+            exit 0
+          fi
+          git add playwright/tests/visual-baseline.spec.ts-snapshots
+          git commit -m "test(e2e): regenerate visual baselines on CI runner [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
+

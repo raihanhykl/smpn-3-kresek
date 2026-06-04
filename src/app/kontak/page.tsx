@@ -8,6 +8,9 @@ import { ContactFormSection } from '@components/organisms/kontak/ContactFormSect
 import { FaqSection } from '@components/organisms/kontak/FaqSection';
 import { CtaFinalSection } from '@components/organisms/CtaFinalSection';
 
+// Content comes from the DB in `api` mode; render per-request, not at build.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Kontak — SMPN 3 Kresek',
   description: 'Hubungi SMPN 3 Kresek melalui telepon, email, WhatsApp, atau form kontak resmi sekolah.',

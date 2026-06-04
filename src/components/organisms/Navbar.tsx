@@ -6,6 +6,7 @@ import { Container } from '@components/atoms/Container';
 import { useScrollY } from '@lib/hooks/useScrollY';
 import { cn } from '@lib/utils/cn';
 import type { SiteConfig, Route } from '@config/types';
+import Image from 'next/image';
 
 export interface NavbarProps {
   site: SiteConfig;
@@ -31,8 +32,14 @@ export function Navbar({ site, activeRoute, transparentOverHero = false }: Navba
       >
         <Container className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary font-heading text-base font-extrabold text-white">
-              {site.brand.shortName}
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md">
+              <Image
+                height={44}
+                width={44}
+                src="/images/logo/smpn3kresek-logo.png"
+                alt={`Logo ${site.brand.name}`}
+                className="h-full w-full object-cover"
+              />
             </div>
             <div className="flex flex-col">
               <span

@@ -34,7 +34,6 @@ export async function assembleAcademic(): Promise<AcademicPageConfig> {
     penilaian: c.penilaian,
     kalender: {
       meta: c.kalender.meta,
-      events: c.kalender.events,
       documentSlot: documentSlot
         ? { id: documentSlot.id, media: documentSlot.media ? {
             id: documentSlot.media.id,
