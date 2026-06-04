@@ -1,63 +1,56 @@
-# SMPN 3 Kresek — Website
+# Website SMP Negeri 3 Kresek
 
-Website resmi **SMP Negeri 3 Kresek** (Kecamatan Kresek, Kabupaten Tangerang, Banten) — dibangun sebagai bagian dari project PKM (Pengabdian kepada Masyarakat).
+Website resmi SMP Negeri 3 Kresek (Kecamatan Kresek, Kabupaten Tangerang, Banten). Selain menampilkan profil dan informasi sekolah ke publik, situs ini punya panel admin sehingga staf sekolah bisa memperbarui kontennya sendiri tanpa perlu menyentuh kode.
 
-## Status
+Dikerjakan sebagai bagian dari program PKM (Pengabdian kepada Masyarakat).
 
-**Phase 2a (Admin CRUD foundation): ✅ Complete** — admin shell (sidebar + topbar), generic CRUD scaffolding (tabel + side-drawer form + delete-confirm + drag-reorder), server actions dengan cache invalidation + audit, dan CRUD penuh untuk **Guru, Prestasi, FAQ** via UI. Perubahan langsung muncul di public site. Foto pakai gradient + emoji picker (upload foto asli di Phase 3). Phase 2b akan menambah entity sisanya (Ekstrakurikuler, Mata Pelajaran, Galeri, Fasilitas, Struktur Organisasi) + editor SiteConfig/Navigation.
+![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white)
 
-**Phase 1 (Data migration): ✅ Complete** — public site now reads all content from Postgres via `ApiContentProvider` (`NEXT_PUBLIC_DATA_SOURCE=api`). Visual regression tests confirm no drift from Phase 0. CTA "Info PPDB" diganti "Kontak". Seed script populates DB dari `src/config/` (idempotent).
+## Daftar isi
 
-**Phase 0 (Foundation): ✅ Complete** — server runtime + Postgres + Prisma, NextAuth v5 (Edge/Node split) + bcrypt, login flow, force-password-change flow, audit log, middleware auth guard, health check, idempotent seed, Playwright E2E + Jest integration tests, GitHub Actions CI, Hostinger VPS deploy script.
+- [Fitur](#fitur)
+- [Teknologi](#teknologi)
+- [Menjalankan secara lokal](#menjalankan-secara-lokal)
+- [Scripts](#scripts)
+- [Mengelola konten](#mengelola-konten)
+- [Arsitektur](#arsitektur)
+- [Deployment](#deployment)
+- [Testing](#testing)
 
-Phase 3 selanjutnya: media library + upload foto (Cloudinary). Phase 4: inline editor à la Notion. Lihat [docs/superpowers/specs/](./docs/superpowers/specs/) dan [docs/superpowers/plans/](./docs/superpowers/plans/) untuk roadmap lengkap.
+## Fitur
 
-### Phase 1 deployment notes
+- **Situs publik** dengan halaman Beranda, Profil, Akademik, Fasilitas, Mading, dan Kontak.
+- **Panel admin** dengan login (NextAuth v5 + bcrypt), pemaksaan ganti password saat login pertama, dan audit log untuk setiap perubahan.
+- **CRUD dari UI** untuk guru, prestasi, ekstrakurikuler, mata pelajaran, FAQ, galeri, fasilitas, struktur organisasi, mading, dan slot dokumen. Apa yang diubah admin langsung tampil di situs publik.
+- **Media library** berbasis Cloudinary: unggah foto, crop dan atur posisi, lacak di mana sebuah media dipakai, lalu hapus atau lepaskan tanpa meninggalkan file yatim.
+- **Slot dokumen PDF** yang bisa diisi dari admin, misalnya untuk kalender pendidikan.
 
-**⚠️ WAJIB**: Set `NEXT_PUBLIC_DATA_SOURCE=api` di production env (PM2 ecosystem file atau systemd env) sebelum first Phase 1 deploy. Tanpa ini, site tetap render dari StaticContentProvider (stale snapshot dari src/config/) — admin edits di Phase 2+ tidak akan muncul.
+## Teknologi
 
-**Verify production env**:
-```bash
-# Di VPS, sebelum deploy:
-echo $NEXT_PUBLIC_DATA_SOURCE   # harus "api"
-```
+- Next.js 15 (App Router) dengan server runtime
+- React 19 dan TypeScript dalam mode strict
+- MySQL 8 melalui Prisma 6
+- NextAuth v5 (pemisahan Edge/Node) dan bcrypt untuk autentikasi
+- Cloudinary untuk penyimpanan dan transformasi gambar
+- Zod dan react-hook-form untuk validasi form
+- dnd-kit untuk pengurutan entitas
+- Tailwind CSS 3
+- Jest dan Playwright untuk pengujian
 
-**First-time deploy flow** (deploy script handle ini otomatis):
-1. `prisma migrate deploy` — apply schema
-2. `npm run db:seed:content` — populate dari src/config/ (idempotent)
-3. `npm run build` — production build dengan api source
-4. `pm2 reload smpn3`
+## Menjalankan secara lokal
 
-**Dev lokal**: setelah migrate, jalankan `DATABASE_URL="..." npm run db:seed:content` dan set `NEXT_PUBLIC_DATA_SOURCE=api` di `.env.local`.
+### Prasyarat
 
-**⚠️ Phase 2 caveat**: deploy script saat ini selalu re-seed dari src/config/. Setelah Phase 2 (admin CRUD) ship, edit production data via admin UI akan **overwritten** oleh deploy. Phase 2 plan akan mengkonditionalisasi seed (e.g., hanya kalau marker row absent, atau hapus step ini dari deploy.sh).
+- Node.js 22.x (versinya di-pin di `.nvmrc`; minimal 18.17)
+- npm 10 atau lebih baru
+- MySQL 8 yang berjalan secara lokal
+- Akun Cloudinary (free tier cukup) jika ingin memakai fitur unggah foto
 
-> 📘 **Baru di Next.js full-stack?** Lihat dev guide untuk Express developers:
-> - [docs/dev-guide/nextjs-untuk-express-developer.md](./docs/dev-guide/nextjs-untuk-express-developer.md) — peta padanan konsep Express ↔ Next.js
-> - [docs/dev-guide/walkthrough-phase-0.md](./docs/dev-guide/walkthrough-phase-0.md) — line-by-line walk-through code Phase 0
-
----
-
-## Tech stack
-
-- **Next.js 15** (App Router) dengan `output: 'export'`
-- **React 19 + TypeScript** strict mode (`exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`)
-- **Tailwind CSS** (theme di-extend mengikuti design system)
-- **Jest + React Testing Library** (jsdom)
-- **Node ≥ 18.17** (direkomendasikan 22.x — lihat `.nvmrc`)
-
----
-
-## Prerequisites
-
-- Node.js ≥ 18.17 (di-pin ke 22.22.0 via `.nvmrc` / `.node-version`)
-- npm ≥ 10
-
-```bash
-nvm use   # pakai versi Node yang sudah di-pin
-```
-
-## Setup
+### Langkah
 
 ```bash
 git clone <repo-url>
@@ -66,293 +59,134 @@ nvm use
 npm ci
 ```
 
-## Development
+Salin file environment lalu isi nilainya:
 
 ```bash
-npm run dev          # http://localhost:3000
+cp .env.example .env.local
 ```
 
-## Production build (static export)
+| Variable                                      | Keterangan                                                                                  |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                | Koneksi MySQL, mis. `mysql://user:pass@localhost:3306/smpn_3_kresek_pkm` (tanpa `?schema=`) |
+| `TEST_DATABASE_URL`                           | Database terpisah untuk test — test menjalankan wipe dan seed yang destruktif               |
+| `AUTH_SECRET`                                 | Buat dengan `openssl rand -base64 32`                                                       |
+| `AUTH_URL`                                    | `http://localhost:3000` saat lokal; URL produksi saat deploy                                |
+| `NEXT_PUBLIC_DATA_SOURCE`                     | Set ke `api` agar situs membaca data dari database                                          |
+| `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Kredensial Cloudinary; secret harus tetap di sisi server                                    |
+| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`           | Nama cloud, ikut muncul di setiap URL media                                                 |
+
+Siapkan database, lalu jalankan dev server:
 
 ```bash
-npm run build        # output → ./out/
-npx serve out        # serve hasil build secara lokal
+npm run db:migrate        # terapkan skema
+npm run db:seed:content   # isi data awal dari src/config/ (idempotent)
+npm run db:seed           # buat admin pertama; password sementara tercetak di terminal
+npm run dev
 ```
 
-`./out/` adalah folder static yang siap di-upload ke S3 / Netlify / Vercel / Cloudflare Pages tanpa server runtime.
-
-## Verification on a fresh clone
-
-Urutan command persis yang harus berjalan tanpa error dan tanpa warning:
-
-```bash
-rm -rf node_modules .next out
-nvm use
-npm ci
-npm run lint
-npm run typecheck
-npm test
-npm run build
-npx serve out
-```
+Situs publik ada di `http://localhost:3000` dan login admin di `http://localhost:3000/admin`.
 
 ## Scripts
 
-| Script | Fungsi |
-|---|---|
-| `npm run dev` | Dev server (port 3000) |
-| `npm run build` | Production build + static export ke `out/` |
-| `npm run lint` | ESLint (`--max-warnings=0`) |
-| `npm run typecheck` | `tsc --noEmit` strict mode |
-| `npm test` | Jalankan unit + component tests |
-| `npm run test:ci` | Tests + coverage report |
-| `npm run format` | Prettier check |
+| Script                      | Fungsi                                       |
+| --------------------------- | -------------------------------------------- |
+| `npm run dev`               | Dev server di port 3000                      |
+| `npm run build`             | Generate Prisma client lalu build produksi   |
+| `npm start`                 | Jalankan server produksi                     |
+| `npm run lint`              | ESLint (`--max-warnings=0`)                  |
+| `npm run typecheck`         | `tsc --noEmit`                               |
+| `npm test`                  | Unit dan component test                      |
+| `npm run test:int`          | Integration test (butuh `TEST_DATABASE_URL`) |
+| `npm run e2e`               | Playwright end-to-end                        |
+| `npm run db:migrate`        | Terapkan migrasi (dev)                       |
+| `npm run db:migrate:deploy` | Terapkan migrasi (produksi)                  |
+| `npm run db:seed`           | Seed admin pertama                           |
+| `npm run db:seed:content`   | Seed konten dari `src/config/`               |
+| `npm run db:studio`         | Buka Prisma Studio                           |
 
----
+## Mengelola konten
 
-## Content editing guide (untuk non-developer)
+Konten dibagi dua: teks statis dan struktur situs hidup di kode, sedangkan data yang sering berubah hidup di database.
 
-Semua copy, foto placeholder, daftar guru, ekstrakurikuler, FAQ, prestasi, dst. ada di typed config files. Edit file-nya, save, dan dev server otomatis reload.
+**Lewat panel admin** (untuk staf sekolah). Sebagian besar isi situs dikelola dari `/admin` tanpa menyentuh kode: login, pilih entitas di sidebar (guru, prestasi, galeri, dan seterusnya), lalu tambah, ubah, hapus, urutkan dengan drag, atau unggah foto. Perubahan langsung tampil di situs publik.
 
-| Yang ingin diubah | File yang di-edit |
-|---|---|
-| Nama sekolah, alamat, telepon, email, sosial media, akreditasi | [`src/config/site.ts`](./src/config/site.ts) |
-| Menu navigasi | [`src/config/navigation.ts`](./src/config/navigation.ts) |
-| Halaman **Beranda** (hero, stats, sambutan kepsek, program, galeri, prestasi, lokasi) | [`src/config/pages/home.ts`](./src/config/pages/home.ts) |
-| Halaman **Profil** (sejarah, visi-misi, tujuan, identitas, struktur organisasi, guru, prestasi) | [`src/config/pages/profil.ts`](./src/config/pages/profil.ts) |
-| Halaman **Akademik** (kurikulum, mata pelajaran per kelas, jadwal, metode, penilaian, kalender) | [`src/config/pages/akademik.ts`](./src/config/pages/akademik.ts) |
-| Halaman **Fasilitas** (sarana, ekstrakurikuler, kegiatan rutin, galeri, tata tertib) | [`src/config/pages/fasilitas.ts`](./src/config/pages/fasilitas.ts) |
-| Halaman **Kontak** (info kontak, form WhatsApp/email, FAQ) | [`src/config/pages/kontak.ts`](./src/config/pages/kontak.ts) |
+**Lewat config** (untuk developer). Teks statis, branding, dan navigasi ada di file config bertipe:
 
-### Contoh: mengganti nomor telepon sekolah
+| Yang diubah                                                    | File                                                     |
+| -------------------------------------------------------------- | -------------------------------------------------------- |
+| Nama sekolah, alamat, telepon, email, sosial media, akreditasi | [`src/config/site.ts`](./src/config/site.ts)             |
+| Menu navigasi                                                  | [`src/config/navigation.ts`](./src/config/navigation.ts) |
+| Teks per halaman (Profil, Akademik, Fasilitas, Kontak)         | [`src/config/pages/`](./src/config/pages/)               |
 
-1. Buka [`src/config/site.ts`](./src/config/site.ts)
-2. Ubah field `contact.phone` dan `contact.phoneHref`
-3. Save → footer, halaman Kontak, dan section Lokasi di Beranda akan otomatis update
+Field yang diberi komentar `// TODO: replace with real data` adalah placeholder yang masih menunggu data riil, seperti NPSN dan koordinat lokasi.
 
-### Contoh: menambahkan guru baru
+## Arsitektur
 
-1. Buka [`src/config/pages/profil.ts`](./src/config/pages/profil.ts)
-2. Tambah object baru ke array `guru.teachers`:
-   ```ts
-   { id: 'g8', name: 'Nama Guru', position: 'Guru Bahasa Daerah', badge: 'S.Pd.',
-     category: 'guru', photo: { kind: 'gradient', from: '#DBEAFE', to: '#93C5FD', emoji: '👨‍🏫' } }
-   ```
-3. Save
-
-Field yang ditandai `// TODO: replace with real data` di config adalah placeholder yang menunggu diisi data riil (Nama Kepala Sekolah, NPSN, koordinat lokasi, dsb).
-
-### Mengganti placeholder PDF
-
-Letakkan PDF asli di `public/docs/`:
-- `kalender-akademik.pdf` — tombol "Unduh Kalender Akademik" di halaman Akademik
-- `tata-tertib.pdf` — tombol "Unduh Buku Tata Tertib" di halaman Fasilitas
-
----
-
-## Architecture overview
-
-Atomic design + data abstraction:
+Halaman publik tidak membaca database atau config secara langsung. Keduanya disatukan di balik satu lapisan `ContentProvider`, jadi sumber datanya bisa berganti tanpa mengubah komponen halaman.
 
 ```
 src/
-├── app/                Next App Router pages (5 routes + (admin) gated)
-├── components/
-│   ├── atoms/          Button, Badge, SectionHeading, IconBox, TextLink, …
-│   ├── molecules/      Cards, Accordion, Tabs, Breadcrumb, …
-│   ├── organisms/      Per-page section components (Navbar, Footer, HeroSection, …)
-│   └── templates/      PageLayout (composes Navbar + main + Footer + BackToTop)
+├── app/
+│   ├── (admin)/      Panel admin (login, dashboard, entities, media), dijaga auth
+│   ├── profil/ akademik/ fasilitas/ mading/ kontak/   Halaman publik
+│   ├── api/          Route handlers
+│   └── page.tsx      Beranda
+├── components/       Atoms, molecules, organisms, templates
 ├── config/
-│   ├── types.ts        Single source-of-truth untuk semua entity + page types
-│   ├── site.ts, navigation.ts
-│   └── pages/          Per-route content (home, profil, akademik, fasilitas, kontak)
+│   ├── site.ts, navigation.ts    Teks statis dan menu
+│   └── pages/                     Teks per halaman
 ├── lib/
-│   ├── data/           ContentProvider interface + Static + Api stub + factory
-│   ├── hooks/          useScrollY, useScrollReveal, useCountUp, useCarousel, useAccordion
-│   └── utils/          cn, buildWhatsAppUrl, buildMailtoUrl, validateContactForm
-├── styles/globals.css
-└── __tests__/          Unit + component tests
+│   ├── data/         ContentProvider, repositories, assemblers
+│   ├── auth/         Konfigurasi NextAuth (pemisahan Edge/Node)
+│   ├── db/           Prisma client
+│   ├── media/        Cloudinary, pelacakan penggunaan media, crop
+│   ├── security/     Guard dan rate limit
+│   └── validation/   Skema Zod
+├── middleware.ts     Auth guard untuk /admin
+└── __tests__/
+
+prisma/schema.prisma  User, Session, AuditLog, Teacher, Achievement,
+                      Extracurricular, Subject, Faq, Mading, GalleryItem,
+                      Facility, OrganizationMember, DocumentSlot,
+                      SectionPhoto, MediaAsset, MediaUsage
 ```
 
-Each page file is a thin server component yang `await getContentProvider().getXxxPage()` lalu memberikan slice config bertipe ke organism sections. **Tidak ada hardcoded Indonesian string di JSX** — semuanya berasal dari config.
+Pembagian sumber konten:
 
----
+| Jenis konten                                                            | Sumber               | Cara edit   |
+| ----------------------------------------------------------------------- | -------------------- | ----------- |
+| Teks statis, navigasi, branding                                         | `src/config/`        | Edit kode   |
+| Guru, prestasi, ekskul, mapel, FAQ, galeri, fasilitas, struktur, mading | MySQL                | Panel admin |
+| Foto section halaman                                                    | MySQL dan Cloudinary | Panel admin |
 
-## Data abstraction (siap untuk backend masa depan)
+## Deployment
 
-Semua data dibaca melalui satu interface:
+Aplikasi berjalan sebagai server runtime (bukan static export), di-deploy ke Hostinger VPS dengan PM2, dan dipicu oleh GitHub Actions saat ada push ke `main`. Alur lengkapnya ada di [`scripts/deploy.sh`](./scripts/deploy.sh) dan bersifat atomic: kalau salah satu langkah gagal, build lama tetap berjalan.
 
-```ts
-// src/lib/data/ContentProvider.ts
-interface ContentProvider {
-  getSiteConfig():     Promise<SiteConfig>;
-  getHomePage():       Promise<HomePageConfig>;
-  getProfilePage():    Promise<ProfilePageConfig>;
-  getAcademicPage():   Promise<AcademicPageConfig>;
-  getFacilitiesPage(): Promise<FacilitiesPageConfig>;
-  getContactPage():    Promise<ContactPageConfig>;
-}
+Garis besar langkahnya:
+
+```bash
+git reset --hard origin/main
+npm ci
+npx prisma generate
+npx prisma migrate deploy
+npm run build
+pm2 reload smpn3
 ```
 
-Saat ini terdapat dua implementasi:
+Beberapa catatan khusus Hostinger:
 
-- `StaticContentProvider` — membaca dari typed configs di `src/config/`. Aktif saat `NEXT_PUBLIC_DATA_SOURCE=static` (default).
-- `ApiContentProvider` — **stub** untuk future Node/Express/Prisma/MySQL backend. Setiap method-nya melempar "not implemented yet".
+- `DATABASE_URL` harus memakai `127.0.0.1:3306`, bukan `localhost`, dan menambahkan `connection_limit=1` agar Prisma tidak error.
+- Seed konten tidak dijalankan pada deploy rutin. Produksi menyimpan data riil yang dimasukkan sekolah lewat admin, dan seed entitas bersifat create-only sehingga tidak menimpa hasil edit.
 
-Factory `getContentProvider()` membaca env var dan mengembalikan implementasi yang sesuai (di-cache untuk lifetime process).
-
-### Future backend integration
-
-Saat backend siap:
-
-1. Implementasikan setiap method di [`src/lib/data/ApiContentProvider.ts`](./src/lib/data/ApiContentProvider.ts) dengan `fetch` ke endpoint `${baseUrl}/...`.
-2. Mapping response JSON ke shape `HomePageConfig` / `ProfilePageConfig` / dst. (semua sudah ditipekan di [`src/config/types.ts`](./src/config/types.ts)).
-3. Set env var:
-   ```bash
-   NEXT_PUBLIC_DATA_SOURCE=api
-   ```
-4. Tidak ada perubahan di sisi UI: setiap page sudah `await provider.getXxxPage()`.
-
-### Future Prisma schema sketch
-
-Entity shapes di `types.ts` sudah didesain agar mapping ke MySQL tabel realistis:
-
-- `Teacher` → `teachers (id, name, position, badge, category, photo_kind, photo_src, ...)`
-- `Achievement` → `achievements (id, year, title, recipient, organizer, level, icon)`
-- `Extracurricular` → `extracurriculars (id, name, category, description, pembina, schedule, achievement, icon)`
-- `Faq` → `faqs (id, question, answer, category)`
-- `GalleryItem`, `ContactCard`, dst.
-
-Field-field bersifat scalar dan menggunakan discriminated `kind` union daripada nested polymorphism, sehingga ramah Prisma.
-
----
-
-## Admin route group
-
-Folder `src/app/(admin)/` sudah disiapkan tapi belum diimplementasikan.
-
-`src/app/(admin)/layout.tsx` memanggil `notFound()` jika `NEXT_PUBLIC_DATA_SOURCE !== 'api'`, jadi pada static build (default), URL `/admin` resolve ke halaman 404 global — build tetap clean, tidak ada error.
-
-Saat backend + autentikasi siap:
-1. Switch `NEXT_PUBLIC_DATA_SOURCE=api`.
-2. Implementasi UI CRUD per entity di bawah `src/app/(admin)/admin/*`.
-3. Tambahkan auth guard (NextAuth, Clerk, atau custom token check di layout).
-
----
+Untuk rollback, SSH ke VPS lalu `git reset --hard <commit-sebelumnya> && bash scripts/deploy.sh`. Migrasi tidak otomatis dikembalikan; buat reverse migration bila skema perlu diundur.
 
 ## Testing
 
 ```bash
-npm test                 # 51 tests across utils, data, hooks, components
-npm run test:ci          # + coverage report
+npm test           # unit dan component test
+npm run test:int   # integration test, butuh TEST_DATABASE_URL
+npm run e2e        # Playwright end-to-end
 ```
 
-Threshold: ≥ 70% coverage pada `src/lib/`. Yang ditest:
-
-- **Utilities** (`buildWhatsAppUrl`, `buildMailtoUrl`, `validateContactForm`, `cn`) — pure functions, edge cases, encoding.
-- **Data layer** — factory selector, Static provider returns expected configs, Api stub throws.
-- **Hooks** — `useAccordion`, `useCarousel`, `useScrollY`, `useCountUp`, `useScrollReveal` (single/multi modes, wrap-around, threshold, fallback).
-- **Components** — atoms (Button, BadgeLevel) dan molecules (ContactCard, FilterTabs) — rendering, variants, accessibility, event handlers.
-
----
-
-## Environment variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `NEXT_PUBLIC_DATA_SOURCE` | `static` | `static` atau `api`. Static → membaca dari config. Api → mengaktifkan `ApiContentProvider` dan route `/admin`. |
-
-Copy [`.env.example`](./.env.example) ke `.env.local` untuk overrides lokal.
-
----
-
-## Deployment
-
-Karena `output: 'export'`, `./out/` adalah folder static yang siap di-host:
-
-### Vercel
-1. Import repo ke Vercel.
-2. Framework preset: **Next.js**.
-3. Build command: `npm run build`. Output dir: `out/` (auto-detect).
-
-### Netlify
-1. Build command: `npm run build`.
-2. Publish directory: `out/`.
-
-### S3 + CloudFront
-```bash
-npm run build
-aws s3 sync out/ s3://your-bucket/ --delete
-```
-
-### Cloudflare Pages
-1. Build command: `npm run build`.
-2. Build output directory: `out`.
-
-````markdown
-### Hostinger VPS deployment
-
-One-time setup on VPS (Ubuntu 22.04+ assumed):
-
-```bash
-# Install Node 22 via nvm + PM2 + MySQL
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
-source ~/.bashrc
-nvm install 22.22.0 && nvm use 22.22.0 && nvm alias default 22.22.0
-npm i -g pm2
-
-# MySQL 8 (Ubuntu) — 8.0.16+ recommended
-sudo apt-get install -y mysql-server
-sudo mysql -e "CREATE DATABASE smpn3 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-sudo mysql -e "CREATE USER 'smpn3'@'localhost' IDENTIFIED BY 'change-me';"
-sudo mysql -e "GRANT ALL PRIVILEGES ON smpn3.* TO 'smpn3'@'localhost'; FLUSH PRIVILEGES;"
-# DATABASE_URL on MySQL: mysql://smpn3:change-me@localhost:3306/smpn3  (no ?schema= param)
-
-# Clone repo
-sudo mkdir -p /opt/smpn3 && sudo chown $USER /opt/smpn3
-git clone <repo> /opt/smpn3/app
-cd /opt/smpn3/app
-
-# Env vars
-cp .env.example .env.local
-# Edit .env.local — set DATABASE_URL, AUTH_SECRET (openssl rand -base64 32), AUTH_URL
-
-# First deploy
-bash scripts/deploy.sh
-
-# Start with PM2 (NODE_ENV=production is implicit because `next start` defaults to production)
-pm2 start npm --name smpn3 -- start
-pm2 save
-pm2 startup  # follow printed instructions
-
-# Seed first admin
-npm run db:seed
-# Note the temporary password printed; share via WhatsApp; user changes on first login.
-```
-
-Once SSH access is set up, configure GitHub repo secrets `SSH_HOST`, `SSH_USER`, `SSH_KEY` and add the deploy job to `.github/workflows/ci.yml`:
-
-```yaml
-  deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [build, integration, e2e]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: bash /opt/smpn3/deploy.sh
-```
-
-**Rollback**: SSH into VPS, `cd /opt/smpn3/app && git reset --hard <previous-good-commit-sha> && bash scripts/deploy.sh`. Migrations are not rolled back automatically — use Prisma migration files to author a reverse migration if schema needs to revert.
-````
-
----
-
-## Notes
-
-- Semua image saat ini adalah emoji-on-gradient placeholders (lihat discriminated `Photo` type di `types.ts`). Untuk swap ke foto asli, ubah `kind: 'gradient'` ke `kind: 'url'` + isi `src` dan `alt` pada item di config.
-- Placeholder PDFs di `public/docs/` minimal — replace dengan PDF asli kalender akademik dan tata tertib saat tersedia.
-- Map embed di section Lokasi dan halaman Kontak adalah block placeholder. Untuk embed Google Maps iframe asli, edit field map di config (sudah disiapkan slot URL-nya).
+Coverage di `src/lib/` dijaga minimal 70%.
