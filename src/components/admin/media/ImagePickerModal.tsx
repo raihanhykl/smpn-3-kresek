@@ -5,6 +5,8 @@ import { cldUrl } from '@/lib/media/cldUrl';
 import type { ImagePickerKind, PickedMedia } from './types';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
 import { UploadButton } from './UploadButton';
+import { deleteMediaAction } from '@/app/(admin)/admin/media/_actions/media-actions';
+import { usageLabel } from '@/lib/media/usage-label';
 
 /**
  * Phase 3 ImagePickerModal — modal grid of MediaAsset rows of the requested
@@ -24,6 +26,12 @@ export function ImagePickerModal({ kind, onPick }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadReady, setUploadReady] = useState<boolean | null>(null);
+  // id -> transient delete UI state for that card
+  const [cardState, setCardState] = useState<Record<string, {
+    status: 'idle' | 'confirming' | 'deleting';
+    usage?: string[];
+    error?: string;
+  }>>({});
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -53,6 +61,25 @@ export function ImagePickerModal({ kind, onPick }: Props) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onPick]);
+
+  function setCard(id: string, s: { status: 'idle' | 'confirming' | 'deleting'; usage?: string[]; error?: string }) {
+    setCardState((prev) => ({ ...prev, [id]: s }));
+  }
+
+  async function handleDelete(id: string) {
+    setCard(id, { status: 'deleting' });
+    const r = await deleteMediaAction(id);
+    if (!r.ok) {
+      setCard(id, { status: 'idle', error: 'Gagal menghapus. Coba lagi.' });
+      return;
+    }
+    if (r.data.deleted) {
+      await refresh(); // photo gone from grid
+    } else {
+      // In use — list EVERY location (one entry per usage row, no label dedupe).
+      setCard(id, { status: 'idle', usage: r.data.usage.map(usageLabel) });
+    }
+  }
 
   return (
     <div
@@ -137,6 +164,37 @@ export function ImagePickerModal({ kind, onPick }: Props) {
                     >
                       Pilih
                     </button>
+
+                    {(() => {
+                      const st = cardState[m.id] ?? { status: 'idle' as const };
+                      if (st.status === 'confirming') {
+                        return (
+                          <div className="mt-1 flex gap-1">
+                            <button type="button" onClick={() => handleDelete(m.id)} className="flex-1 rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700">Ya, hapus</button>
+                            <button type="button" onClick={() => setCard(m.id, { status: 'idle' })} className="flex-1 rounded border border-neutral-300 px-2 py-1 text-xs">Batal</button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <button
+                          type="button"
+                          disabled={st.status === 'deleting'}
+                          onClick={() => setCard(m.id, { status: 'confirming' })}
+                          className="mt-1 w-full rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {st.status === 'deleting' ? 'Menghapus…' : '🗑 Hapus'}
+                        </button>
+                      );
+                    })()}
+
+                    {cardState[m.id]?.usage ? (
+                      <p className="mt-1 text-[11px] leading-snug text-amber-700">
+                        Sedang dipakai di: {cardState[m.id]!.usage!.join(', ')}. Lepas dulu di sana.
+                      </p>
+                    ) : null}
+                    {cardState[m.id]?.error ? (
+                      <p className="mt-1 text-[11px] text-red-600">{cardState[m.id]!.error}</p>
+                    ) : null}
                   </div>
                 </li>
               ))}
