@@ -332,7 +332,8 @@ async function main() {
     const m = madingSeed[i]!;
     await prisma.mading.upsert({
       where: { id: m.id },
-      update: { title: m.title, body: m.body, images: m.images, order: i },
+      // update:{} — never overwrite an existing post (would re-orphan MediaUsage); seed only creates missing demo rows.
+      update: {},
       create: { id: m.id, title: m.title, body: m.body, images: m.images, order: i },
     });
   }
