@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/client';
 import { withRole, type ActionResult } from '@/lib/auth/server-action-guard';
 import { getSession } from '@/lib/auth/session';
 import { writeAudit } from '@/lib/security/audit';
+import { destroyCloudinaryAsset } from '@/lib/media/cloudinary-destroy';
 import {
   deleteMediaAsset, getMediaAssetById, getMediaAssetUsage,
 } from '@/lib/data/repositories/media-repo';
@@ -20,6 +21,7 @@ function revalidateMediaConsumers() {
   revalidateTag('page:profil');
   revalidateTag('page:akademik');
   revalidateTag('page:fasilitas');
+  revalidateTag('section-photos');
 }
 
 export type DeleteMediaResult =
@@ -65,6 +67,12 @@ export async function forceDeleteMediaAction(id: string): Promise<ActionResult<{
   return withRole(session, ['ADMIN'], async (user) => {
     const exists = await getMediaAssetById(id);
     if (!exists) throw Object.assign(new Error('not found'), { code: 'P2025' });
+    // Best-effort: force delete exists for broken rows whose Cloudinary file may
+    // be missing. Try to remove the file too, but never block the row cleanup on
+    // it. The network call must stay OUTSIDE the transaction below.
+    try {
+      await destroyCloudinaryAsset(exists.publicId, exists.kind === 'pdf' ? 'raw' : 'image');
+    } catch { /* ignore — the whole point is to clear a row whose file is gone */ }
     await prisma.$transaction(async (tx) => {
       await tx.mediaUsage.deleteMany({ where: { mediaId: id } });
       await tx.mediaAsset.delete({ where: { id } });

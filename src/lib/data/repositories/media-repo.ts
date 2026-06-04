@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/client';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
 import type { MediaKind } from '@/lib/media/limits';
 import { toCachedUrl } from '@/lib/media/branded-types';
+import { destroyCloudinaryAsset } from '@/lib/media/cloudinary-destroy';
 
 /**
  * Phase 3 MediaAsset repository.
@@ -178,5 +179,14 @@ export async function createMediaAsset(input: CreateMediaAssetInput): Promise<Pu
  * disappearing themselves). Both behaviours come from prisma/schema.prisma.
  */
 export async function deleteMediaAsset(id: string): Promise<void> {
+  const row = await prisma.mediaAsset.findUnique({
+    where: { id }, select: { publicId: true, kind: true },
+  });
+  if (!row) throw Object.assign(new Error('not found'), { code: 'P2025' });
+  // Cloudinary first. Pass publicId UNCHANGED — for raw/PDF it carries the .pdf
+  // extension that a raw destroy requires; stripping it would silently leak the
+  // file. A thrown error aborts (DB row kept); 'not_found' is success (already gone).
+  const resourceType = row.kind === 'pdf' ? 'raw' : 'image';
+  await destroyCloudinaryAsset(row.publicId, resourceType);
   await prisma.mediaAsset.delete({ where: { id } });
 }
