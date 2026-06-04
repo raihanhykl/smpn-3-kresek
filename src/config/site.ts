@@ -66,7 +66,7 @@ export const siteConfig: SiteConfig = {
   ],
   accreditation: {
     // TODO: confirm real grade
-    grade: '',
+    grade: 'A',
     body: '',
     label: 'Terakreditasi',
   },
