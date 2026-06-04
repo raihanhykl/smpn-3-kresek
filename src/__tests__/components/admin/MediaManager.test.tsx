@@ -11,9 +11,11 @@ jest.mock('next/navigation', () => ({
 // Mock the server actions wired into the manager.
 const mockDelete = jest.fn();
 const mockForceDelete = jest.fn();
+const mockDetach = jest.fn();
 jest.mock('@/app/(admin)/admin/media/_actions/media-actions', () => ({
   deleteMediaAction: (...args: unknown[]) => mockDelete(...args),
   forceDeleteMediaAction: (...args: unknown[]) => mockForceDelete(...args),
+  detachMediaUsageAction: (...args: unknown[]) => mockDetach(...args),
 }));
 
 function asset(id: string, overrides: Partial<PublicMediaAsset> = {}): PublicMediaAsset {
@@ -52,6 +54,8 @@ describe('MediaManager', () => {
   beforeEach(() => {
     mockDelete.mockReset();
     mockForceDelete.mockReset();
+    mockDetach.mockReset();
+    mockDetach.mockResolvedValue({ ok: true });
     delete (global as unknown as { fetch?: unknown }).fetch;
   });
 

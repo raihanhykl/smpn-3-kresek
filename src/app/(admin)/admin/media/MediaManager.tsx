@@ -10,7 +10,7 @@ import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import type { PublicMediaAsset } from '@/lib/validation/schemas/media';
 import { UploadButton } from '@/components/admin/media/UploadButton';
 import {
-  deleteMediaAction, forceDeleteMediaAction,
+  deleteMediaAction, forceDeleteMediaAction, detachMediaUsageAction,
 } from '@/app/(admin)/admin/media/_actions/media-actions';
 
 type ListResponse = { items: PublicMediaAsset[]; nextCursor: string | null };
@@ -104,6 +104,27 @@ export function MediaManager({ role }: { role: Role }) {
         // Blocked by usage — switch the dialog to the usage list view.
         setUsageBlock({ asset: deleting, usage: r.data.usage });
         setDeleting(null);
+      }
+    });
+  }
+
+  function handleDetach(row: UsageRow) {
+    if (!usageBlock) return;
+    const assetId = usageBlock.asset.id;
+    const asset = usageBlock.asset;
+    setDeleteError(null);
+    startTransition(async () => {
+      const r = await detachMediaUsageAction({ mediaId: assetId, ...row });
+      if (!r.ok) { setDeleteError(mapActionError(r.error)); return; }
+      // Re-attempt delete: recompute the (now shorter) usage list, or finish deleting.
+      const d = await deleteMediaAction(assetId);
+      if (!d.ok) { setDeleteError(mapActionError(d.error)); return; }
+      if (d.data.deleted) {
+        setItems((prev) => prev.filter((m) => m.id !== assetId));
+        setUsageBlock(null);
+        router.refresh();
+      } else {
+        setUsageBlock({ asset, usage: d.data.usage });
       }
     });
   }
@@ -291,12 +312,22 @@ export function MediaManager({ role }: { role: Role }) {
           <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
             <h2 className="text-lg font-semibold text-neutral-900">Berkas masih dipakai</h2>
             <p className="mt-1 text-sm text-neutral-600">
-              <strong>{usageBlock.asset.filename}</strong> dipakai di {usageBlock.usage.length} tempat.
-              Lepas penggunaannya dulu sebelum menghapus berkas ini.
+              <strong>{usageBlock.asset.filename}</strong> dipakai di {usageBlock.usage.length} lokasi.
+              Lepaskan terlebih dahulu dari setiap lokasi sebelum menghapus berkas ini.
             </p>
-            <ul className="mt-3 max-h-48 list-disc overflow-y-auto pl-5 text-sm text-neutral-700">
+            <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-sm text-neutral-700">
               {usageBlock.usage.map((u, i) => (
-                <li key={i}>{usageLabel(u)}</li>
+                <li key={i} className="flex items-center justify-between gap-2">
+                  <span>{usageLabel(u)}</span>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleDetach(u)}
+                    className="shrink-0 rounded border border-amber-300 px-2 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    Lepaskan
+                  </button>
+                </li>
               ))}
             </ul>
             <div className="mt-4 flex justify-end">
