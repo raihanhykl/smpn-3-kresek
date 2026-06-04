@@ -10,6 +10,7 @@ import type { PickedMedia } from '@/components/admin/media/types';
 const mockDeleteMedia = jest.fn();
 jest.mock('@/app/(admin)/admin/media/_actions/media-actions', () => ({
   deleteMediaAction: (...args: unknown[]) => mockDeleteMedia(...args),
+  detachMediaUsageAction: jest.fn(async () => ({ ok: true })),
 }));
 
 // Minimal fetch mock: route /api/media/list responses via the test harness.
