@@ -185,7 +185,7 @@ export const akademikPageConfig: AcademicPageConfig = {
     cards: [
       {
         id: 'j1',
-        icon: '🌅',
+        icon: '',
         bgClass: 'primary',
         title: 'Hari & Jam Sekolah',
         items: [
@@ -198,7 +198,7 @@ export const akademikPageConfig: AcademicPageConfig = {
       },
       {
         id: 'j2',
-        icon: '☕',
+        icon: '',
         bgClass: 'secondary',
         title: 'Waktu Istirahat',
         items: [
