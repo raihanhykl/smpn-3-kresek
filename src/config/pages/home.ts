@@ -59,7 +59,7 @@ export const homePageConfig: HomePageConfig = {
       'Kami terus berupaya meningkatkan kualitas layanan pendidikan demi terwujudnya visi sekolah yang kami cita-citakan bersama. Semoga website ini bermanfaat dan menjadi jembatan informasi yang efektif bagi seluruh keluarga besar SMPN 3 Kresek.',
     ],
     // TODO: replace with real Kepsek name
-    signatureName: 'Drs. H. Ahmad Suherman, M.Pd.',
+    signatureName: 'Tri Wahono, S.Pd.',
     signatureTitle: 'Kepala SMPN 3 Kresek',
     photoPlaceholderText: 'Foto Kepala Sekolah · ~400 × 500 px',
     photoEmoji: '👤',
@@ -261,9 +261,9 @@ export const homePageConfig: HomePageConfig = {
         kind: 'email',
         icon: '✉️',
         label: 'Email',
-        value: 'info@smpn3kresek.sch.id',
+        value: 'smpn3kresek.official@gmail.com',
         sub: 'Respon dalam 1×24 jam kerja',
-        href: 'mailto:info@smpn3kresek.sch.id',
+        href: 'mailto:smpn3kresek.official@gmail.com',
       },
       {
         kind: 'hours',
@@ -279,9 +279,9 @@ export const homePageConfig: HomePageConfig = {
       icon: '📍',
     },
     secondary: { label: 'Salin Alamat', href: '#', icon: '⎘' },
-    copyText: 'Jl. Raya Kresek No. 15, Kresek, Tangerang, Banten 15620',
-    mapEmbedUrl:
-      'https://www.google.com/maps?q=-6.124152,106.397865&z=16&hl=id&output=embed',
+    copyText:
+      'Jl. Raya Kresek - Gandaria Kp Katileng RT03/RW01, Desa Talok, Kecamatan Kresek, Tangerang, Banten.',
+    mapEmbedUrl: 'https://www.google.com/maps?q=-6.124152,106.397865&z=16&hl=id&output=embed',
   },
   ctaFinal: {
     title: 'Bergabunglah dengan Keluarga Besar SMPN 3 Kresek',

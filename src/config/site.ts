@@ -14,9 +14,12 @@ export const siteConfig: SiteConfig = {
   kontakCta: { label: 'Kontak', href: '/kontak' },
   contact: {
     // TODO: replace with real data
-    address: 'Jl. Raya Kresek No. 15, Kresek, Tangerang, Banten 15620',
+    address:
+      'Jl. Raya Kresek - Gandaria Kp Katileng RT03/RW01, Desa Talok, Kecamatan Kresek, Tangerang, Banten.',
     // TODO: replace with real data
-    addressLines: ['Jl. Raya Kresek No. 15', 'Kresek, Tangerang, Banten 15620'],
+    addressLines: [
+      'Jl. Raya Kresek - Gandaria Kp Katileng RT03/RW01, Desa Talok, Kecamatan Kresek, Tangerang, Banten.',
+    ],
     // TODO: replace with real data
     phone: '(021) 5922-1234',
     // TODO: replace with real data
@@ -24,7 +27,7 @@ export const siteConfig: SiteConfig = {
     // TODO: replace with real data — international format without "+"
     whatsapp: '6221592212345',
     // TODO: replace with real data
-    email: 'info@smpn3kresek.sch.id',
+    email: 'smpn3kresek.official@gmail.com',
     hours: 'Senin – Jumat, 07.00 – 15.00 WIB',
     hoursDetail: 'Tutup pada hari Sabtu, Minggu, dan libur nasional',
     // TODO: replace with school coordinates
@@ -63,9 +66,9 @@ export const siteConfig: SiteConfig = {
   ],
   accreditation: {
     // TODO: confirm real grade
-    grade: 'A',
-    body: 'BAN-S/M',
-    label: 'Terakreditasi BAN-S/M',
+    grade: '',
+    body: '',
+    label: 'Terakreditasi',
   },
   footer: {
     copyright: '© 2025 SMPN 3 Kresek — Kab. Tangerang, Banten. Hak cipta dilindungi.',
