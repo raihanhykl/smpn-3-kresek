@@ -1,11 +1,13 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/db/client';
 import { withRole, type ActionResult } from '@/lib/auth/server-action-guard';
 import { getSession } from '@/lib/auth/session';
 import { writeAudit } from '@/lib/security/audit';
 import { destroyCloudinaryAsset } from '@/lib/media/cloudinary-destroy';
+import { detachMediaUsage, type UsageRow } from '@/lib/media/detach-usage';
 import {
   deleteMediaAsset, getMediaAssetById, getMediaAssetUsage,
 } from '@/lib/data/repositories/media-repo';
@@ -15,13 +17,11 @@ import {
  * render media via cldUrl(publicId) needs to refetch.
  */
 function revalidateMediaConsumers() {
-  revalidateTag('media');
-  revalidateTag('teachers');
-  revalidateTag('documents');
-  revalidateTag('page:profil');
-  revalidateTag('page:akademik');
-  revalidateTag('page:fasilitas');
-  revalidateTag('section-photos');
+  for (const t of [
+    'media', 'teachers', 'documents', 'achievements', 'gallery',
+    'extracurriculars', 'facilities', 'mading',
+    'page:home', 'page:profil', 'page:akademik', 'page:fasilitas', 'section-photos',
+  ]) revalidateTag(t);
 }
 
 export type DeleteMediaResult =
@@ -82,5 +82,35 @@ export async function forceDeleteMediaAction(id: string): Promise<ActionResult<{
     }).catch(() => {});
     revalidateMediaConsumers();
     return { deleted: true };
+  });
+}
+
+const detachInputSchema = z.object({
+  mediaId: z.string().min(1),
+  usedInTable: z.enum(['Teacher', 'Achievement', 'Extracurricular', 'GalleryItem', 'Facility', 'SectionPhoto', 'Mading', 'DocumentSlot']),
+  usedInId: z.string().min(1),
+  usedInField: z.string().min(1),
+});
+
+/**
+ * Detach ("Lepaskan") a photo from ONE location: resets the owner's photo reference
+ * (entity→gradient, Mading→remove elem, SectionPhoto→clear, DocumentSlot→null) and
+ * removes the MediaUsage row. Orphan-safe: a stale usage row (owner no longer
+ * references the photo) is simply removed. After all locations are detached, the
+ * asset becomes deletable.
+ */
+export async function detachMediaUsageAction(raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  return withRole(session, ['ADMIN', 'EDITOR'], async (user) => {
+    const input = detachInputSchema.parse(raw);
+    const media = await getMediaAssetById(input.mediaId);
+    if (!media) throw Object.assign(new Error('not found'), { code: 'P2025' });
+    const row: UsageRow = { usedInTable: input.usedInTable, usedInId: input.usedInId, usedInField: input.usedInField };
+    await detachMediaUsage(media.publicId, input.mediaId, row);
+    writeAudit({
+      userId: user.id, action: 'media_detach',
+      target: `${input.usedInTable}:${input.usedInId}:${input.usedInField}`,
+    }).catch(() => {});
+    revalidateMediaConsumers();
   });
 }
