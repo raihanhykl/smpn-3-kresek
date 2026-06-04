@@ -32,9 +32,11 @@ describe('detachMediaUsageAction', () => {
     await prisma.user.create({ data: { id: 'media-detach-test', email: 'mdt2@test.local', passwordHash: 'x', name: 'MDT2', role: 'ADMIN' } });
   });
   afterAll(async () => {
-    await prisma.mediaUsage.deleteMany({ where: { usedInId: { in: ['detach-m1', 'detach-m2', 'detach-t1'] } } });
+    await prisma.mediaUsage.deleteMany({ where: { usedInId: { in: ['detach-m1', 'detach-m2', 'detach-t1', 'home:hero:photo', 'detach-doc1'] } } });
     await prisma.mading.deleteMany({ where: { id: { in: ['detach-m1', 'detach-m2'] } } });
     await prisma.teacher.deleteMany({ where: { id: 'detach-t1' } });
+    await prisma.sectionPhoto.deleteMany({ where: { pageKey: 'home', sectionKey: 'hero', field: 'photo' } });
+    await prisma.documentSlot.deleteMany({ where: { id: 'detach-doc1' } });
     await prisma.mediaAsset.deleteMany({ where: { id: { in: cleanupIds } } });
     await prisma.auditLog.deleteMany({ where: { userId: 'media-detach-test' } });
     await prisma.user.deleteMany({ where: { id: 'media-detach-test' } });
@@ -72,6 +74,31 @@ describe('detachMediaUsageAction', () => {
     const t = await prisma.teacher.findUnique({ where: { id: 'detach-t1' } });
     expect(t!.photoKind).toBe('gradient');
     expect(t!.photoSrc).toBeNull();
+    expect(await usageCount(m.id)).toBe(0);
+  });
+
+  it('SectionPhoto: detach removes the slot row (unset) + the usage row', async () => {
+    const m = await createMediaAsset(mediaInput(904)); cleanupIds.push(m.id);
+    // usedInId is the slot key `${pageKey}:${sectionKey}:${field}`; usedInField is the literal 'photo'.
+    await prisma.sectionPhoto.create({
+      data: { pageKey: 'home', sectionKey: 'hero', field: 'photo', photoKind: 'url', photoSrc: m.publicId, photoAlt: 'a' },
+    });
+    await prisma.mediaUsage.create({ data: { mediaId: m.id, usedInTable: 'SectionPhoto', usedInId: 'home:hero:photo', usedInField: 'photo' } });
+    const r = await detachMediaUsageAction({ mediaId: m.id, usedInTable: 'SectionPhoto', usedInId: 'home:hero:photo', usedInField: 'photo' });
+    expect(r.ok).toBe(true);
+    const sp = await prisma.sectionPhoto.findUnique({ where: { pageKey_sectionKey_field: { pageKey: 'home', sectionKey: 'hero', field: 'photo' } } });
+    expect(sp).toBeNull(); // slot cleared → render falls back to config gradient
+    expect(await usageCount(m.id)).toBe(0);
+  });
+
+  it('DocumentSlot: detach nulls the slot mediaId + removes usage', async () => {
+    const m = await createMediaAsset(mediaInput(905)); cleanupIds.push(m.id);
+    await prisma.documentSlot.create({ data: { id: 'detach-doc1', mediaId: m.id } });
+    await prisma.mediaUsage.create({ data: { mediaId: m.id, usedInTable: 'DocumentSlot', usedInId: 'detach-doc1', usedInField: 'mediaId' } });
+    const r = await detachMediaUsageAction({ mediaId: m.id, usedInTable: 'DocumentSlot', usedInId: 'detach-doc1', usedInField: 'mediaId' });
+    expect(r.ok).toBe(true);
+    const slot = await prisma.documentSlot.findUnique({ where: { id: 'detach-doc1' } });
+    expect(slot!.mediaId).toBeNull();
     expect(await usageCount(m.id)).toBe(0);
   });
 

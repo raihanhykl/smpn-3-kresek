@@ -68,15 +68,6 @@ export async function getSectionPhoto(
   return row ? rowToPhoto(row) : null;
 }
 
-/** Remove a section photo slot entirely (unset → render falls back to config gradient). Idempotent. */
-export async function deleteSectionPhoto(
-  pageKey: string,
-  sectionKey: string,
-  field: PhotoField,
-): Promise<void> {
-  await prisma.sectionPhoto.deleteMany({ where: { pageKey, sectionKey, field } });
-}
-
 /** Upsert a slot's photo (row created lazily on first save). */
 export async function setSectionPhoto(
   pageKey: string,
