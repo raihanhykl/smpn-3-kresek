@@ -149,7 +149,7 @@ export const profilPageConfig: ProfilePageConfig = {
     chart: {
       levels: [
         // TODO: confirm real names + titles
-        { id: 'l0', boxes: [{ name: 'Drs. H. Ahmad Suherman, M.Pd.', title: 'Kepala Sekolah' }] },
+        { id: 'l0', boxes: [{ name: 'Tri Wahono, S.Pd.', title: 'Kepala Sekolah' }] },
         {
           id: 'l1',
           boxes: [
@@ -189,15 +189,15 @@ export const profilPageConfig: ProfilePageConfig = {
     teachers: [
       {
         id: 'p1',
-        name: 'Drs. H. Ahmad Suherman',
+        name: 'Tri Wahono, S.Pd.',
         position: 'Kepala Sekolah',
-        badge: 'M.Pd.',
+        badge: 'S.Pd.',
         category: 'pimpinan',
         photo: { kind: 'gradient', from: '#DBEAFE', to: '#93C5FD', emoji: '👨‍💼' },
       },
       {
         id: 'p2',
-        name: 'Hj. Siti Fatimah, S.Pd.',
+        name: 'Imam Santoso, S.Kom.',
         position: 'Wakasek Kurikulum',
         badge: 'S.Pd.',
         category: 'pimpinan',
