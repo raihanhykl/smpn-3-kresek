@@ -48,10 +48,9 @@ async function main() {
           id: t.id, name: t.name, position: t.position, badge: t.badge, category: t.category,
           categoryOrder: catOrder, order, ...photoFields,
         },
-        update: {
-          name: t.name, position: t.position, badge: t.badge, category: t.category,
-          categoryOrder: catOrder, order, ...photoFields,
-        },
+        // Create-only: never overwrite an existing row. Reseed must NOT clobber an
+        // admin-set photo (would orphan its MediaUsage) or admin-edited fields.
+        update: {},
       });
     }
   }
@@ -89,10 +88,8 @@ async function main() {
         id: a.id, year: a.year, title: a.title, recipient: a.recipient,
         organizer: a.organizer, level: a.level, ...photoCols, order,
       },
-      update: {
-        year: a.year, title: a.title, recipient: a.recipient,
-        organizer: a.organizer, level: a.level, ...photoCols, order,
-      },
+      // Create-only: reseed never clobbers an admin photo (orphan risk) or edits.
+      update: {},
     });
   }
 
@@ -133,11 +130,8 @@ async function main() {
           description: e.description, pembina: e.pembina, schedule: e.schedule,
           achievement, ...photoCols, order,
         },
-        update: {
-          name: e.name, category: e.category, categoryOrder: catOrder,
-          description: e.description, pembina: e.pembina, schedule: e.schedule,
-          achievement, ...photoCols, order,
-        },
+        // Create-only: reseed never clobbers an admin photo (orphan risk) or edits.
+        update: {},
       });
     }
   }
@@ -187,7 +181,8 @@ async function main() {
     await prisma.faq.upsert({
       where: { id: f.id },
       create: { id: f.id, question: f.question, answer: f.answer, category: f.category, order },
-      update: { question: f.question, answer: f.answer, category: f.category, order },
+      // Create-only: reseed never overwrites admin-edited FAQ content.
+      update: {},
     });
   }
 
@@ -225,11 +220,8 @@ async function main() {
         ...photoCols,
         category: g.category ?? null, span: g.span ?? null, order,
       },
-      update: {
-        caption: g.caption,
-        ...photoCols,
-        category: g.category ?? null, span: g.span ?? null, order,
-      },
+      // Create-only: reseed never clobbers an admin photo (orphan risk) or edits.
+      update: {},
     });
   }
 
@@ -260,10 +252,8 @@ async function main() {
         id: f.id, kind: 'featured', name: f.name, description: f.description,
         ...photoCols, span: f.span ?? null, icon: null, order,
       },
-      update: {
-        kind: 'featured', name: f.name, description: f.description,
-        ...photoCols, span: f.span ?? null, icon: null, order,
-      },
+      // Create-only: reseed never clobbers an admin photo (orphan risk) or edits.
+      update: {},
     });
   }
   for (let i = 0; i < fasilitasPageConfig.sarana.mini.length; i++) {
@@ -279,14 +269,8 @@ async function main() {
         span: null,
         order,
       },
-      update: {
-        kind: 'mini', name: m.name, icon: m.icon,
-        description: null,
-        photoKind: null, photoSrc: null, photoAlt: null,
-        photoFrom: null, photoTo: null, photoEmoji: null,
-        span: null,
-        order,
-      },
+      // Create-only: reseed never overwrites an existing facility.
+      update: {},
     });
   }
 
